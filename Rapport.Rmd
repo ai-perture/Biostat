@@ -7,6 +7,10 @@ output: html_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+install.packages('tidyverse')
+library(tidyverse)
+library(ggpubr)
+library(rstatix)
 ```
 
 # Biostatistique : Etude du diabète
@@ -37,7 +41,31 @@ intervalle de confiance.
 Dans toute la suite, vous travaillerez sur les données standardisées
 
 ```{r}
+library(GGally)
+pm <- ggduo(data, 10, 2:5, types = list('comboVorizontal'))
+pm
+```
+```{r}
+library(GGally)
+pm <- ggduo(data, 10, 5:9, types = list('comboVorizontal'))
+pm
+```
 
+On a deux groupes selon le diabète: les négatifs et les positifs, qui sont indépendants. 
+le test t standard de Student, qui suppose que la variance des deux groupes est égale.
+le test t de Welch, qui est moins restrictif que le test original de Student. Il s’agit du test où vous ne présumez pas que la variance est la même dans les deux groupes, ce qui donne les degrés de liberté fractionnaires suivants.
+
+Le test t pour échantillons indépendant assume les caractéristiques suivantes au sujet des données:
+
+- Indépendance des observations. Chaque sujet ne doit appartenir qu’à un seul groupe (=ok). Il n’y a aucun lien entre les observations de chaque groupe.= ok
+Aucune valeur aberrante significative dans les deux groupes ok?
+Normalité. les données pour chaque groupe devraient être distribuées approximativement normalement.
+Homogénéité des variances. la variance de la variable-réponse devrait être égale dans chaque groupe.
+
+```{r Identification de valeurs aberrantes}
+data %>%
+  group_by(diabetes) %>%
+  identify_outliers(pregnant)
 ```
 
 
