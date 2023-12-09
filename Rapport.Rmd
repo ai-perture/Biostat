@@ -11,3 +11,34 @@ knitr::opts_chunk$set(echo = TRUE)
 
 # Biostatistique : Etude du diabète
 ### Ai-Ling Nguyen Bonnet & Eléna Roques
+
+```{r}
+data <- read.csv('diabetes.csv')
+```
+
+
+## Question 0 - Prétraitement des données 
+```{r}
+#install.packages("visdat")
+library(visdat)
+```
+
+```{r}
+vis_miss(data[,-1])
+```
+
+
+## Question 1 - Analyse exploratoire des données
+
+1.1. Représenter la distribution de chaque variable explicative conditionnée par la variable diabetes. Observet-
+on des différences significatives ? En utilisant les tests statistiques qui conviennent (test de student, test du
+χ2, . . . ), vous justifierez soigneusement vos réponses en vous appuyant sur des critères de p-value ou autre
+intervalle de confiance.
+Dans toute la suite, vous travaillerez sur les données standardisées
+
+```{r}
+
+```
+
+
+## Question 2 - Prédiction par régression logistique
