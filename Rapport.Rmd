@@ -3,70 +3,102 @@ title: "Rapport"
 author: "Ai-Ling Nguyen Bonnet & Elena Roques"
 date: "2023-12-09"
 output: html_document
+editor_options: 
+  markdown: 
+    wrap: sentence
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-install.packages('tidyverse')
 library(tidyverse)
 library(ggpubr)
 library(rstatix)
+library(visdat)
 ```
 
 # Biostatistique : Etude du diabète
+
 ### Ai-Ling Nguyen Bonnet & Eléna Roques
 
 ```{r}
 data <- read.csv('diabetes.csv')
 ```
 
+## Question 0 - Prétraitement des données
 
-## Question 0 - Prétraitement des données 
-```{r}
-#install.packages("visdat")
-library(visdat)
-```
-
-```{r}
+```{r Données manquantes}
 vis_miss(data[,-1])
 ```
 
-
 ## Question 1 - Analyse exploratoire des données
 
-1.1. Représenter la distribution de chaque variable explicative conditionnée par la variable diabetes. Observet-
-on des différences significatives ? En utilisant les tests statistiques qui conviennent (test de student, test du
-χ2, . . . ), vous justifierez soigneusement vos réponses en vous appuyant sur des critères de p-value ou autre
-intervalle de confiance.
+1.1.
+Représenter la distribution de chaque variable explicative conditionnée par la variable diabetes.
+Observet- on des différences significatives ?
+En utilisant les tests statistiques qui conviennent (test de student, test du χ2, . . . ), vous justifierez soigneusement vos réponses en vous appuyant sur des critères de p-value ou autre intervalle de confiance.
 Dans toute la suite, vous travaillerez sur les données standardisées
+
+Voir <https://www.datanovia.com/en/fr/lessons/test-t-dans-r/#t-test-pour-echantillons-independants> pour le t - test
+
+### Visualisation
+
+```{r}
+data %>%
+  group_by(diabetes) %>%
+  get_summary_stats(pregnant, type = "mean_sd")
+```
 
 ```{r}
 library(GGally)
 pm <- ggduo(data, 10, 2:5, types = list('comboVorizontal'))
 pm
 ```
+
 ```{r}
 library(GGally)
 pm <- ggduo(data, 10, 5:9, types = list('comboVorizontal'))
 pm
 ```
 
-On a deux groupes selon le diabète: les négatifs et les positifs, qui sont indépendants. 
-le test t standard de Student, qui suppose que la variance des deux groupes est égale.
-le test t de Welch, qui est moins restrictif que le test original de Student. Il s’agit du test où vous ne présumez pas que la variance est la même dans les deux groupes, ce qui donne les degrés de liberté fractionnaires suivants.
+On a deux groupes selon le diabète: les négatifs et les positifs, qui sont indépendants.
 
-Le test t pour échantillons indépendant assume les caractéristiques suivantes au sujet des données:
+*Le test t standard de Student, qui suppose que la variance des deux groupes est égale. le test t de Welch, qui est moins restrictif que le test original de Student. Il s'agit du test où vous ne présumez pas que la variance est la même dans les deux groupes, ce qui donne les degrés de liberté fractionnaires suivants.*
 
-- Indépendance des observations. Chaque sujet ne doit appartenir qu’à un seul groupe (=ok). Il n’y a aucun lien entre les observations de chaque groupe.= ok
-Aucune valeur aberrante significative dans les deux groupes ok?
-Normalité. les données pour chaque groupe devraient être distribuées approximativement normalement.
-Homogénéité des variances. la variance de la variable-réponse devrait être égale dans chaque groupe.
+*Le test t pour échantillons indépendant assume les caractéristiques suivantes au sujet des données:*
+
+-   *Indépendance des observations. Chaque sujet ne doit appartenir qu'à un seul groupe (=ok). Il n'y a aucun lien entre les observations de chaque groupe.= ok*
+-   *Aucune valeur aberrante significative dans les deux groupes ok?*
+-   *Normalité. les données pour chaque groupe devraient être distribuées approximativement normalement.*
+-   *Homogénéité des variances. la variance de la variable-réponse devrait être égale dans chaque groupe.*
 
 ```{r Identification de valeurs aberrantes}
 data %>%
   group_by(diabetes) %>%
-  identify_outliers(pregnant)
+  identify_outliers(glucose) # a faire sur toutes les variables -> Comment regrouper? 
 ```
 
+#### **Vérifier la normalité par groupes**
+
+Test de Shapiro Wilk (peut etre pas utilie)
+
+Si p-value est inférieur à 0.005, les données ne suivent pas une loi normale.
+
+```{r}
+# Calculer le test d de Shapiro-Wilk par groupes 
+data %>%   
+  group_by(diabetes) %>%   
+  shapiro_test(pregnant)
+
+# Dessiner un qq plot par groupe
+ggqqplot(data, x = "pregnant", facet.by = "diabetes")
+```
+
+```{r}
+stat.test <- data %>% 
+  t_test(pregnant ~ diabetes) %>%
+  #t_test(glucose ~ diabetes) %>%
+  add_significance()
+stat.test
+```
 
 ## Question 2 - Prédiction par régression logistique
