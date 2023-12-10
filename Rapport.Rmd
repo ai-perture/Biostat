@@ -24,13 +24,15 @@ library(visdat)
 data <- read.csv('diabetes.csv')
 ```
 
-## Question 0 - Prétraitement des données
+# Question 0 - Prétraitement des données
 
 ```{r Données manquantes}
 vis_miss(data[,-1])
 ```
 
-## Question 1 - Analyse exploratoire des données
+# Question 1 - Analyse exploratoire des données
+
+## 1.1 - Distribution des variables
 
 1.1.
 Représenter la distribution de chaque variable explicative conditionnée par la variable diabetes.
@@ -40,13 +42,21 @@ Dans toute la suite, vous travaillerez sur les données standardisées
 
 Voir <https://www.datanovia.com/en/fr/lessons/test-t-dans-r/#t-test-pour-echantillons-independants> pour le t - test
 
-### Visualisation
-
-```{r}
+```{r Moyennes}
 data %>%
   group_by(diabetes) %>%
-  get_summary_stats(pregnant, type = "mean_sd")
+  summarise_at( c("pregnant", "glucose", "pressure", "triceps", "insulin", "mass","pedigree","age"),.f = list(mean = mean), na.rm = TRUE)
+  #summarise_all(sd,na.rm = TRUE)
+  #get_summary_stats(glucose, type = "mean_sd")
 ```
+
+```{r Variances}
+data %>%
+  group_by(diabetes) %>%
+  summarise_at( c("pregnant", "glucose", "pressure", "triceps", "insulin", "mass","pedigree","age"),.f = list(sd = sd), na.rm = TRUE)
+```
+
+### Représentation des distributions 
 
 ```{r}
 library(GGally)
@@ -60,16 +70,22 @@ pm <- ggduo(data, 10, 5:9, types = list('comboVorizontal'))
 pm
 ```
 
-On a deux groupes selon le diabète: les négatifs et les positifs, qui sont indépendants.
+### Test t de Student
+
+On a deux groupes selon le diabète: les négatifs et les positifs, dont on voudrait regarder les différences de moyenne.
+Pour cela, un test t de Student peut-être pertinent, pourvu que les conditions suivantes soient remplies:
+
+1.  Indépendance des observations. Chaque sujet ne doit appartenir qu'à un seul groupe. Il n'y a aucun lien entre les observations de chaque groupe.
+2.  Aucune valeur aberrante significative dans les deux groupes
+3.  Normalité. les données pour chaque groupe devraient être distribuées approximativement normalement.
+4.  Homogénéité des variances. la variance de la variable-réponse devrait être égale dans chaque groupe.
+
+L'indépendance des observations est bien vérifiée dans notre cas, puisque les observations ne peuvent avoir qu'un seul label *diabetes* (*pos* ou *neg*).
+Les observations sont faites sur des femmes différentes, supposées sans lien.
 
 *Le test t standard de Student, qui suppose que la variance des deux groupes est égale. le test t de Welch, qui est moins restrictif que le test original de Student. Il s'agit du test où vous ne présumez pas que la variance est la même dans les deux groupes, ce qui donne les degrés de liberté fractionnaires suivants.*
 
 *Le test t pour échantillons indépendant assume les caractéristiques suivantes au sujet des données:*
-
--   *Indépendance des observations. Chaque sujet ne doit appartenir qu'à un seul groupe (=ok). Il n'y a aucun lien entre les observations de chaque groupe.= ok*
--   *Aucune valeur aberrante significative dans les deux groupes ok?*
--   *Normalité. les données pour chaque groupe devraient être distribuées approximativement normalement.*
--   *Homogénéité des variances. la variance de la variable-réponse devrait être égale dans chaque groupe.*
 
 ```{r Identification de valeurs aberrantes}
 data %>%
@@ -77,9 +93,25 @@ data %>%
   identify_outliers(glucose) # a faire sur toutes les variables -> Comment regrouper? 
 ```
 
+```{r}
+# Variables à tester
+variables_a_tester <- c("pregnant", "glucose", "pressure", "triceps", "insulin", "mass", "pedigree", "age")
+
+# Utiliser la fonction map() pour identifier les outliers pour chaque variable
+outliers_list <- map(variables_a_tester, ~ data %>%
+                        group_by(diabetes) %>%
+                        identify_outliers(.x))
+
+# Combinez les résultats dans un tableau
+outliers_combined <- bind_rows(outliers_list, .id = "Variable")
+
+# Afficher le tableau combiné
+print(outliers_combined)
+```
+
 #### **Vérifier la normalité par groupes**
 
-Test de Shapiro Wilk (peut etre pas utilie)
+Test de Shapiro Wilk (peut etre pas utile?)
 
 Si p-value est inférieur à 0.005, les données ne suivent pas une loi normale.
 
@@ -87,7 +119,7 @@ Si p-value est inférieur à 0.005, les données ne suivent pas une loi normale.
 # Calculer le test d de Shapiro-Wilk par groupes 
 data %>%   
   group_by(diabetes) %>%   
-  shapiro_test(pregnant)
+  shapiro_test(glucose)
 
 # Dessiner un qq plot par groupe
 ggqqplot(data, x = "pregnant", facet.by = "diabetes")
@@ -99,6 +131,32 @@ stat.test <- data %>%
   #t_test(glucose ~ diabetes) %>%
   add_significance()
 stat.test
+```
+
+### Normalisation
+
+### t -test 
+
+```{r}
+# Variables à tester
+variables_a_tester <- c("pregnant", "glucose", "pressure", "triceps", "insulin", "mass", "pedigree", "age")
+
+stat_tests <- map(variables_a_tester, ~ data %>%
+                    t_test(as.formula(paste(.x, "~ diabetes"))) %>%
+                    add_significance())
+resultats_combine <- bind_rows(stat_tests, .id = "Variable")
+
+print(resultats_combine)
+```
+
+Pour toutes les variables, la *p-value* est très faible (inférieure à 0.001) donc pour chaque variable, on peut rejeter l'hypothèse que les groupes *positifs* et *négatifs* ont la même moyenne.
+Il est donc raisonnable de considérer que pour chaque variable, la différence entre les deux groupes est significative.
+
+### 1.2 - Analyse en composante principale
+
+```{r}
+out.pca <- prcomp(data[, -NCOL(data)], scale = TRUE)
+summary(out.pca)
 ```
 
 ## Question 2 - Prédiction par régression logistique
