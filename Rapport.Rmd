@@ -22,6 +22,10 @@ library(visdat)
 
 ```{r}
 data <- read.csv('diabetes.csv')
+
+#On sépare les labels des variables 
+X = data[, - NCOL(data)]
+y = data[, NCOL(data)] 
 ```
 
 # Question 0 - Prétraitement des données
@@ -42,6 +46,8 @@ Dans toute la suite, vous travaillerez sur les données standardisées
 
 Voir <https://www.datanovia.com/en/fr/lessons/test-t-dans-r/#t-test-pour-echantillons-independants> pour le t - test
 
+Note : Le *pedigree* est un score mesurant le risque familial du diabète.
+
 ```{r Moyennes}
 data %>%
   group_by(diabetes) %>%
@@ -56,86 +62,97 @@ data %>%
   summarise_at( c("pregnant", "glucose", "pressure", "triceps", "insulin", "mass","pedigree","age"),.f = list(sd = sd), na.rm = TRUE)
 ```
 
-### Représentation des distributions 
+### Représentation des distributions
 
-```{r}
-library(GGally)
-pm <- ggduo(data, 10, 2:5, types = list('comboVorizontal'))
-pm
+```{r, echo = TRUE, fig.align = 'center', fig.height = 7.5, fig.width = 7.5}
+data2 <- melt(data, id = "diabetes") 
+ggplot(data = data2, aes(x = diabetes, y = value, color = diabetes)) + 
+  geom_boxplot(col = "black", show.legend = FALSE, outlier.colour = NA) + theme_bw() +
+  geom_point(shape = 1, 
+             position = position_jitterdodge(dodge.width = .6, 
+                                             jitter.width = .8), 
+             size = 1.8, alpha = 1, show.legend = FALSE) +
+  facet_wrap(. ~ variable, scales = "free") +
+  theme(strip.background = element_rect(colour = "black", fill = "white"),
+        strip.text.x = element_text(size = 11),
+        axis.text = element_text(size = 9), axis.title = element_text(size = 0),
+        legend.position = "bottom") + xlab("") + ylab("") +
+  scale_color_manual(values = c("springgreen4","firebrick3"))
 ```
 
-```{r}
-library(GGally)
-pm <- ggduo(data, 10, 5:9, types = list('comboVorizontal'))
-pm
-```
+### Test t
 
-### Test t de Student
+On a deux groupes selon le diabète: les négatifs, *neg*, et les positifs,*pos*, dont on voudrait regarder les différences de moyenne.
+Pour cela, un test t de Student ou de Welch peut-être pertinent, pourvu que les conditions suivantes soient remplies:
 
-On a deux groupes selon le diabète: les négatifs et les positifs, dont on voudrait regarder les différences de moyenne.
-Pour cela, un test t de Student peut-être pertinent, pourvu que les conditions suivantes soient remplies:
-
-1.  Indépendance des observations. Chaque sujet ne doit appartenir qu'à un seul groupe. Il n'y a aucun lien entre les observations de chaque groupe.
+1.  Indépendance des observations. Chaque sujet ne doit appartenir qu'à un seul groupe. Il n'y a aucun lien entre les observations de chaque groupe. C'est bien vérifié dans notre cas, puisque les observations ne peuvent avoir qu'un seul label *diabetes* (*pos* ou *neg*). Les observations sont faites sur des femmes différentes, supposées sans lien.
 2.  Aucune valeur aberrante significative dans les deux groupes
 3.  Normalité. les données pour chaque groupe devraient être distribuées approximativement normalement.
-4.  Homogénéité des variances. la variance de la variable-réponse devrait être égale dans chaque groupe.
 
-L'indépendance des observations est bien vérifiée dans notre cas, puisque les observations ne peuvent avoir qu'un seul label *diabetes* (*pos* ou *neg*).
-Les observations sont faites sur des femmes différentes, supposées sans lien.
+Le test de Student suppose que les variances entre les deux groupes sont similaires, ce qui n'est pas le cas du test de Welch.
 
-*Le test t standard de Student, qui suppose que la variance des deux groupes est égale. le test t de Welch, qui est moins restrictif que le test original de Student. Il s'agit du test où vous ne présumez pas que la variance est la même dans les deux groupes, ce qui donne les degrés de liberté fractionnaires suivants.*
+#### Valeurs aberrantes
 
-*Le test t pour échantillons indépendant assume les caractéristiques suivantes au sujet des données:*
-
-```{r Identification de valeurs aberrantes}
-data %>%
-  group_by(diabetes) %>%
-  identify_outliers(glucose) # a faire sur toutes les variables -> Comment regrouper? 
-```
-
-```{r}
+```{r Valeurs aberrantes}
 # Variables à tester
 variables_a_tester <- c("pregnant", "glucose", "pressure", "triceps", "insulin", "mass", "pedigree", "age")
 
 # Utiliser la fonction map() pour identifier les outliers pour chaque variable
 outliers_list <- map(variables_a_tester, ~ data %>%
                         group_by(diabetes) %>%
-                        identify_outliers(.x))
+                        identify_outliers(.x)%>%
+                        mutate(variable = .x))
+
+outliers_combined <- bind_rows(outliers_list, .id="Variables")%>%
+  arrange(ID) %>%
+  select(ID, variable,everything(), -c(Variables))%>%
+  filter(is.extreme == TRUE) 
+print(outliers_combined)
+
+# Calculer le nombre de valeurs différentes dans la colonne "ID"
+num_outliers <- outliers_combined %>%
+  summarize(num_outliers= n_distinct(ID))
+
+print(num_outliers)
+```
+
+Il y a 19 observations aberrantes extrêmes.
+On les enlèvera de *data*.
+On peut considérer qu'il n'y pas de valeurs aberrantes sur l'age ou la masse ?
+
+```{r}
+#data<- anti_join(data, outliers_combined, by = "ID")
+```
+
+#### **Normalité par groupes**
+
+On vérifie, pour chaque variable, si les groupes de données suivent une loi normale.
+On utilise à cet effet le test de Shapiro - Wilk.
+Si la p-value est inférieure à 0.005, on considère que les données ne suivent pas une loi normale.
+
+```{r Shapiro-Wilk test}
+library(dplyr)
+#library(outliers)
+library(purrr)
+
+# Utiliser la fonction map() pour effectuer le test de Shapiro-Wilk sur chaque variable
+shapiro_tests <- map(variables_a_tester, ~ data %>%
+                      group_by(diabetes) %>%
+                      summarise(p_value = shapiro.test(.[[.x]])$p.value) %>%
+                      mutate(variable = .x)%>%
+                      select(variable, diabetes, p_value))
 
 # Combinez les résultats dans un tableau
-outliers_combined <- bind_rows(outliers_list, .id = "Variable")
+shapiro_combine <- bind_rows(shapiro_tests)
 
 # Afficher le tableau combiné
-print(outliers_combined)
+print(shapiro_combine)
 ```
 
-#### **Vérifier la normalité par groupes**
+#### t -test
 
-Test de Shapiro Wilk (peut etre pas utile?)
-
-Si p-value est inférieur à 0.005, les données ne suivent pas une loi normale.
-
-```{r}
-# Calculer le test d de Shapiro-Wilk par groupes 
-data %>%   
-  group_by(diabetes) %>%   
-  shapiro_test(glucose)
-
-# Dessiner un qq plot par groupe
-ggqqplot(data, x = "pregnant", facet.by = "diabetes")
-```
-
-```{r}
-stat.test <- data %>% 
-  t_test(pregnant ~ diabetes) %>%
-  #t_test(glucose ~ diabetes) %>%
-  add_significance()
-stat.test
-```
-
-### Normalisation
-
-### t -test 
+Pour évaluer les différences entre les deux groupes *pos* et *neg* selon les variables, on utilise un t-test.
+Le t-test de Welch, utilisé par défaut par R, ne suppose pas les variances égales entre les groupes (contrairement au test de Student).
 
 ```{r}
 # Variables à tester
@@ -144,7 +161,8 @@ variables_a_tester <- c("pregnant", "glucose", "pressure", "triceps", "insulin",
 stat_tests <- map(variables_a_tester, ~ data %>%
                     t_test(as.formula(paste(.x, "~ diabetes"))) %>%
                     add_significance())
-resultats_combine <- bind_rows(stat_tests, .id = "Variable")
+resultats_combine <- bind_rows(stat_tests)%>% 
+    select(-one_of("group1", "group2"))
 
 print(resultats_combine)
 ```
@@ -152,11 +170,27 @@ print(resultats_combine)
 Pour toutes les variables, la *p-value* est très faible (inférieure à 0.001) donc pour chaque variable, on peut rejeter l'hypothèse que les groupes *positifs* et *négatifs* ont la même moyenne.
 Il est donc raisonnable de considérer que pour chaque variable, la différence entre les deux groupes est significative.
 
-### 1.2 - Analyse en composante principale
+## 1.2 - Analyse en composante principale
+
+```{r, echo = TRUE, fig.align = 'center', fig.height = 5.5, fig.width = 5.5}
+fit.pca <- prcomp(na.omit(X%>% 
+                            select(-ID)), center = TRUE, scale = TRUE)
+```
 
 ```{r}
-out.pca <- prcomp(data[, -NCOL(data)], scale = TRUE)
-summary(out.pca)
+summary(fit.pca)
+```
+
+```{r}
+fviz_screeplot(fit.pca, addlabels=TRUE)
+```
+
+```{r}
+fviz_pca_ind(fit.pca, habillage = data[, "diabetes"])
+```
+
+```{r}
+fviz_pca_var(fit.pca, repel = TRUE)
 ```
 
 ## Question 2 - Prédiction par régression logistique
