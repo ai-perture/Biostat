@@ -172,6 +172,11 @@ Il est donc raisonnable de considérer que pour chaque variable, la différence 
 
 ## 1.2 - Analyse en composante principale
 
+On fait l'analyse en enlevant les valeurs NA.
+[Voir question 0 pour remplacer les NA par des valeurs numériques].
+On enlève la colonne ID qui n'a pas d'interêt explicatif.
+Les données sont normalisées et centrées au sein de la fonction pca.
+
 ```{r, echo = TRUE, fig.align = 'center', fig.height = 5.5, fig.width = 5.5}
 fit.pca <- prcomp(na.omit(X%>% 
                             select(-ID)), center = TRUE, scale = TRUE)
@@ -182,15 +187,21 @@ summary(fit.pca)
 ```
 
 ```{r}
+print(head(fit.pca$x))
+```
+
+```{r}
 fviz_screeplot(fit.pca, addlabels=TRUE)
 ```
 
 ```{r}
-fviz_pca_ind(fit.pca, habillage = data[, "diabetes"])
+fviz_pca_ind(fit.pca, habillage = data[, "diabetes"] # Il faut enlever les lignes avec des NA 
 ```
 
 ```{r}
 fviz_pca_var(fit.pca, repel = TRUE)
 ```
+
+### Interprétation 
 
 ## Question 2 - Prédiction par régression logistique
