@@ -24,8 +24,9 @@ library(visdat)
 data <- read.csv('diabetes.csv')
 
 #On sépare les labels des variables 
-X = data[, - NCOL(data)]
-y = data[, NCOL(data)] 
+X = data[,2:(NCOL(data)-1)]
+y <- data[, NCOL(data)]
+y  <- factor(y, levels = c("neg", "pos"), labels = c(0, 1))
 ```
 
 # Question 0 - Prétraitement des données
@@ -195,7 +196,7 @@ fviz_screeplot(fit.pca, addlabels=TRUE)
 ```
 
 ```{r}
-fviz_pca_ind(fit.pca, habillage = data[, "diabetes"] # Il faut enlever les lignes avec des NA 
+#fviz_pca_ind(fit.pca, habillage = data[, "diabetes"] # Il faut enlever les lignes avec des NA 
 ```
 
 ```{r}
@@ -204,4 +205,71 @@ fviz_pca_var(fit.pca, repel = TRUE)
 
 ### Interprétation 
 
-## Question 2 - Prédiction par régression logistique
+# Question 2 - Prédiction par régression logistique
+
+## 2.1 Régression logistique 
+
+**Faire une base test indépendante** ie séparer les données en deux sets : training_data et test_data.
+Par ex 80% et 20% des données exploitables.
+S'assurer de la meme proportion pos/neg dans les deux sets?
+
+Pour réaliser une régression logistique, il est nécessaire d\'avoir un **nombre suffisant de données**.
+En pratique, il est recommandé d\'avoir au moins **10 fois plus d\'événements que de paramètres dans le modèle**.
+
+```{r Base test indépendante}
+nb_obs = NROW(X)
+cut = round(0.8*nb_obs)
+training_X = X[1:cut,]
+training_y = y[1:cut]
+test_X = X[cut+1:nb_obs,]
+test_y = y[cut+1:nb_obs]
+
+```
+
+A ce stade, on a juste fait un régression selon une seule variable.
+Il faut aller regarder du côté de la régression logistique **multinomiale** pour prendre en compte tous les facteurs...
+
+```{r Régression logistique}
+# On utilise y qui a des valeurs binaires ("neg" et "pos" ne peuvent pas être traités pour la régression logistique)
+# X ne contient pas les ID qui ne sont pas une variable explicative 
+model <- glm(training_y ~ ., data = training_X, family = "binomial")
+summary(model)
+```
+
+```{r}
+coefficients <- coef(model)
+
+# Créer un dataframe pour les coefficients
+coefficients_df <- data.frame(variable = names(coefficients), coefficient = coefficients)
+
+# Tracer le graphique des coefficients
+ggplot(coefficients_df, aes(x = variable, y = coefficient)) +
+  geom_bar(stat = "identity", fill = "blue", alpha = 0.7) +
+  labs(title = "Graphique des Coefficients", x = "Variables", y = "Coefficient")
+```
+
+On pourrait regarder les *odd ratios* OR qui représentent l'influence d'un paramètre --\> A creuser ...
+
+## 2.2. Calculs 
+
+## 2.3. Pénalité ℓ1 + ℓ2.
+
+## 2.4. Modèle de régression logistique pénalisée ℓ1 +ℓ2 
+
+pour prédire la variable diabetes à partir de l'ensemble des facteurs de risque.
+Quelles variables semblent les plus pertinentes ?
+Reporter les indicateurs de qualités de cette régression logistique pénalisée ℓ1 + ℓ2.
+
+Remarque 1.
+Vous veillerez à optimiser les paramètres de ce modèle par cross-validation.
+
+Remarque 2.
+En utilisant l'argument weights de la fonction glmnet(), il est possible de gérer le déséquilibre des classes.
+
+## 2.5. Comparaison avec la selection de variable pas - à - pas
+
+Comparer vos résultats issus de la régression logistique pénalisée ℓ1 + ℓ2 au résultat d'une méthode de
+
+sélection de variables pas-à-pas (step() en R).
+
+## 2.6. Conclusion
