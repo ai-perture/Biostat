@@ -23,16 +23,23 @@ library(visdat)
 ```{r}
 data <- read.csv('diabetes.csv')
 
-#On sépare les labels des variables 
-X = data[,2:(NCOL(data)-1)]
-y <- data[, NCOL(data)]
-y  <- factor(y, levels = c("neg", "pos"), labels = c(0, 1))
+
 ```
 
 # Question 0 - Prétraitement des données
 
 ```{r Données manquantes}
 vis_miss(data[,-1])
+```
+
+En attendant de pouvoir extrapoler les valeurs manquantes, on enlèves les observations incomplètes.
+
+```{r}
+data = na.omit(data) #cela enlève presque la moitié des lignes -_-
+#On sépare les labels des variables 
+X = data[,2:(NCOL(data)-1)]
+y = data[, NCOL(data)]
+y = factor(y, levels = c("neg", "pos"), labels = c(0, 1))
 ```
 
 # Question 1 - Analyse exploratoire des données
@@ -81,7 +88,7 @@ ggplot(data = data2, aes(x = diabetes, y = value, color = diabetes)) +
   scale_color_manual(values = c("springgreen4","firebrick3"))
 ```
 
-### Test t
+### Test statistique
 
 On a deux groupes selon le diabète: les négatifs, *neg*, et les positifs,*pos*, dont on voudrait regarder les différences de moyenne.
 Pour cela, un test t de Student ou de Welch peut-être pertinent, pourvu que les conditions suivantes soient remplies:
@@ -150,25 +157,44 @@ shapiro_combine <- bind_rows(shapiro_tests)
 print(shapiro_combine)
 ```
 
+La *p-value* est très faible pour tous les groupes donc on ne peut pas considérer de façon sûre que les données suivent une loi normale.
+
 #### t -test
 
-Pour évaluer les différences entre les deux groupes *pos* et *neg* selon les variables, on utilise un t-test.
-Le t-test de Welch, utilisé par défaut par R, ne suppose pas les variances égales entre les groupes (contrairement au test de Student).
+Pour évaluer les différences entre les deux groupes *pos* et *neg* selon les variables, on utilise un test statistique.
 
-```{r}
+Les données ne suivent pas une loi normale, donc le test de Welch ne peut pas être utilisé de façon rigoureuse.
+On fait donc un test de Wilcoxon qui est une alternative non paramétrique à ces test t pour comparer des moyennes.
+On s'autorise à faire le test de Welch pour comparer les résultats.
+
+```{r Tests statistiques}
 # Variables à tester
+data_clean<- anti_join(data, outliers_combined, by = "ID")
 variables_a_tester <- c("pregnant", "glucose", "pressure", "triceps", "insulin", "mass", "pedigree", "age")
 
-stat_tests <- map(variables_a_tester, ~ data %>%
+# Le t-test classique - version par défaut de Welch
+welch_tests <- map(variables_a_tester, ~ data_clean %>%
                     t_test(as.formula(paste(.x, "~ diabetes"))) %>%
                     add_significance())
-resultats_combine <- bind_rows(stat_tests)%>% 
-    select(-one_of("group1", "group2"))
+welch_res <- bind_rows(welch_tests)%>% 
+    select(-one_of("group1", "group2", "statistic","df"))%>%
+    rename('Welch - p_value' = 'p', "Welch Signif" = 'p.signif')
 
-print(resultats_combine)
+
+# Le test de Wilcox pour des données non normalisées 
+wilcox_tests <- map(variables_a_tester, ~ data_clean %>%
+                    wilcox_test(as.formula(paste(.x, "~ diabetes"))) %>%
+                    add_significance())
+wilcox_res <- bind_rows(wilcox_tests)%>% 
+    select(-one_of("group1", "group2", "statistic"))%>%
+  rename('Wilcox - p_value' = 'p', "Wilcox Signif" = 'p.signif')
+
+test_res <- left_join(welch_res, wilcox_res)
+print(test_res)
 ```
 
-Pour toutes les variables, la *p-value* est très faible (inférieure à 0.001) donc pour chaque variable, on peut rejeter l'hypothèse que les groupes *positifs* et *négatifs* ont la même moyenne.
+Pour chaque variables, et quelque soit le test, la *p-value* est très faible (inférieure à 0.001) donc on peut rejeter l'hypothèse que les groupes *positifs* et *négatifs* ont la même moyenne.
+
 Il est donc raisonnable de considérer que pour chaque variable, la différence entre les deux groupes est significative.
 
 ## 1.2 - Analyse en composante principale
@@ -179,8 +205,7 @@ On enlève la colonne ID qui n'a pas d'interêt explicatif.
 Les données sont normalisées et centrées au sein de la fonction pca.
 
 ```{r, echo = TRUE, fig.align = 'center', fig.height = 5.5, fig.width = 5.5}
-fit.pca <- prcomp(na.omit(X%>% 
-                            select(-ID)), center = TRUE, scale = TRUE)
+fit.pca <- prcomp(X, center = TRUE, scale = TRUE)
 ```
 
 ```{r}
@@ -196,11 +221,23 @@ fviz_screeplot(fit.pca, addlabels=TRUE)
 ```
 
 ```{r}
-#fviz_pca_ind(fit.pca, habillage = data[, "diabetes"] # Il faut enlever les lignes avec des NA 
+indiv_pca <-fviz_pca_ind(fit.pca, habillage = data$diabetes) # Il faut enlever les lignes avec des NA 
+
+indiv_pca
+
+# indiv_pca +
+#   scale_color_manual(values = c("0" = "cyan", "1" = "red"),
+#                      breaks = c(0, 1),
+#                      labels = c("neg", "pos"),
+#                      name = "Individuals - PCA")
 ```
 
 ```{r}
 fviz_pca_var(fit.pca, repel = TRUE)
+```
+
+```{r}
+fviz_pca_biplot(fit.pca, habillage = data$diabetes)
 ```
 
 ### Interprétation 
