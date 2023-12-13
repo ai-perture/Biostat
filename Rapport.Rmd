@@ -14,6 +14,15 @@ library(tidyverse)
 library(ggpubr)
 library(rstatix)
 library(visdat)
+library(reshape2)
+library(ggplot2)
+library(corrplot)
+library(GGally)
+library(factoextra)
+library(pheatmap)
+library(dplyr)
+#library(outliers)
+library(purrr)
 ```
 
 # Biostatistique : Etude du diabète
@@ -22,8 +31,6 @@ library(visdat)
 
 ```{r}
 data <- read.csv('diabetes.csv')
-
-
 ```
 
 # Question 0 - Prétraitement des données
@@ -40,6 +47,8 @@ data = na.omit(data) #cela enlève presque la moitié des lignes -_-
 X = data[,2:(NCOL(data)-1)]
 y = data[, NCOL(data)]
 y = factor(y, levels = c("neg", "pos"), labels = c(0, 1))
+print(X)
+print(y)
 ```
 
 # Question 1 - Analyse exploratoire des données
@@ -128,10 +137,6 @@ Il y a 19 observations aberrantes extrêmes.
 On les enlèvera de *data*.
 On peut considérer qu'il n'y pas de valeurs aberrantes sur l'age ou la masse ?
 
-```{r}
-#data<- anti_join(data, outliers_combined, by = "ID")
-```
-
 #### **Normalité par groupes**
 
 On vérifie, pour chaque variable, si les groupes de données suivent une loi normale.
@@ -139,9 +144,7 @@ On utilise à cet effet le test de Shapiro - Wilk.
 Si la p-value est inférieure à 0.005, on considère que les données ne suivent pas une loi normale.
 
 ```{r Shapiro-Wilk test}
-library(dplyr)
-#library(outliers)
-library(purrr)
+
 
 # Utiliser la fonction map() pour effectuer le test de Shapiro-Wilk sur chaque variable
 shapiro_tests <- map(variables_a_tester, ~ data %>%
@@ -221,10 +224,8 @@ fviz_screeplot(fit.pca, addlabels=TRUE)
 ```
 
 ```{r}
-indiv_pca <-fviz_pca_ind(fit.pca, habillage = data$diabetes) # Il faut enlever les lignes avec des NA 
-
+indiv_pca <-fviz_pca_ind(fit.pca, habillage = data$diabetes) 
 indiv_pca
-
 # indiv_pca +
 #   scale_color_manual(values = c("0" = "cyan", "1" = "red"),
 #                      breaks = c(0, 1),
@@ -240,18 +241,19 @@ fviz_pca_var(fit.pca, repel = TRUE)
 fviz_pca_biplot(fit.pca, habillage = data$diabetes)
 ```
 
-### Interprétation 
+### Interprétation
 
 # Question 2 - Prédiction par régression logistique
 
-## 2.1 Régression logistique 
+## 2.1 Régression logistique
 
 **Faire une base test indépendante** ie séparer les données en deux sets : training_data et test_data.
 Par ex 80% et 20% des données exploitables.
 S'assurer de la meme proportion pos/neg dans les deux sets?
 
-Pour réaliser une régression logistique, il est nécessaire d\'avoir un **nombre suffisant de données**.
-En pratique, il est recommandé d\'avoir au moins **10 fois plus d\'événements que de paramètres dans le modèle**.
+Pour réaliser une régression logistique, il est nécessaire d'avoir un **nombre suffisant de données**.
+En pratique, il est recommandé d'avoir au moins **10 fois plus d'événements que de paramètres dans le modèle**.
+Ici, on a des centaines d'observations (pour chaque label), pour moins de 10 paramètres donc il y a suffisamment de données.
 
 ```{r Base test indépendante}
 nb_obs = NROW(X)
@@ -287,11 +289,11 @@ ggplot(coefficients_df, aes(x = variable, y = coefficient)) +
 
 On pourrait regarder les *odd ratios* OR qui représentent l'influence d'un paramètre --\> A creuser ...
 
-## 2.2. Calculs 
+## 2.2. Calculs
 
 ## 2.3. Pénalité ℓ1 + ℓ2.
 
-## 2.4. Modèle de régression logistique pénalisée ℓ1 +ℓ2 
+## 2.4. Modèle de régression logistique pénalisée ℓ1 +ℓ2
 
 pour prédire la variable diabetes à partir de l'ensemble des facteurs de risque.
 Quelles variables semblent les plus pertinentes ?
