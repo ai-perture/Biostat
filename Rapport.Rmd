@@ -23,21 +23,53 @@ library(pheatmap)
 library(dplyr)
 #library(outliers)
 library(purrr)
+library(mice)
+library(tidyr)
 ```
 
 # Biostatistique : Etude du diabète
 
 ### Ai-Ling Nguyen Bonnet & Eléna Roques
 
+Nous allons au cours de ce travail construire un modèle de prédiction du diabète à partir d'un jeu de données du NIDDK.
+
 ```{r}
 data <- read.csv('diabetes.csv')
+print(data, row.names=F)
 ```
+Le jeu de données contient le diagnostic (diabétique ou non) ainsi que la mesure de 8 autres variables (âge, IMC, nombre de grossesses, pression...) sur un ensemble de 768 femmes.
 
 # Question 0 - Prétraitement des données
+
+On a remarqué ci-dessus que certaines données étaient manquantes (matérialisées par NA dans le data-frame) : 
+```{r}
+summary(data)
+```
+On remarque qu'effectivement, les variables insulin et triceps présentent un grand nombre de données manquantes, respectivement presque la moitié (374/768) et un tiers (227/768).
 
 ```{r Données manquantes}
 vis_miss(data[,-1])
 ```
+Les autres variables sont complètes où avec une faible proportion de NA.
+En tout, 9.4% des données sont manquantes. 
+
+Dans la suite, on va utiliser le package mice (Multivariate Imputation via Chained Equations) qui permet qui permet de réaliser de l'imputation de données manquantes ; mais aussi de visualiser les données manquantes et d'anayse la qualité des valeurs imputées.
+
+Commençons par analyser un peu plus finement comment se répartissent les données manquantes :
+
+```{r}
+md.pattern(data, rotate.names=TRUE)
+```
+Ainsi, on peut voir que certaines entrées cumulent une absence de données dans 2, 3 ou 4 variables différentes. 
+Pour des raisons de cohérence des données, on décide d'écarter de la suite de l'étude celles où 3 ou 4 variables ne sont pas renseignées.
+
+```{r}
+data$nb_NA <- apply(data, MARGIN = 1, function(x){sum(is.na(x))})
+data_trie <- data |> subset(nb_NA < 3, select = - nb_NA)
+print(dim(data_trie))
+```
+
+
 
 En attendant de pouvoir extrapoler les valeurs manquantes, on enlèves les observations incomplètes.
 
