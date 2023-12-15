@@ -23,6 +23,8 @@ library(pheatmap)
 library(dplyr)
 #library(outliers)
 library(purrr)
+library(caret)
+
 ```
 
 # Biostatistique : Etude du diabète
@@ -253,24 +255,28 @@ Pour réaliser une régression logistique, il est nécessaire d'avoir un **nomb
 En pratique, il est recommandé d'avoir au moins **10 fois plus d'événements que de paramètres dans le modèle**.
 Ici, on a des centaines d'observations (pour chaque label), pour moins de 10 paramètres donc il y a suffisamment de données.
 
-```{r Base test indépendante}
-nb_obs = NROW(data)
-cut = round(0.8*nb_obs)
-training_X = X[1:cut,]
-training_y = y[1:cut]
-test_X = X[cut+1:nb_obs,]
-test_y = y[cut+1:nb_obs]
+### Base test
 
-print(data)
+```{r Base test indépendante}
 data <- read.csv('diabetes.csv')
 data <- na.omit(data)
-#data <- mutate(data, diabetes = ifelse(diabetes == "neg", int(0), ifelse(diabetes == "pos", numeric(1), diabetes)))
 data$diabetes = factor(data$diabetes, levels = c("neg", "pos"), labels = c(0, 1))
-training_data = data[1:cut,2:NCOL(data)]
-test_data = data[cut+1: nb_obs,2:NCOL(data)]
 
-print(training_data)
+
+# Fixez une graine aléatoire pour la reproductibilité
+set.seed(123)
+
+# Générez un vecteur d'indices pour l'ensemble d'entraînement (80% des données)
+indice <- sample(seq_len(nrow(data)), size = round(0.8 * nrow(data)), replace = FALSE)
+# Créez l'ensemble d'entraînement
+training_data <- data[indice, ]
+# Créez l'ensemble de test en excluant les indices de l'ensemble d'entraînement
+test_data <- data[-indice, ]
+
+print(test_data)
 ```
+
+### Entrainement
 
 ```{r Régression logistique}
 
@@ -293,6 +299,8 @@ diabete = 0.11*pregnant + 0.036*glucose + 0.0013*pressure + 0.0066*triceps - 9*1
 $$
 
 ie les coefficients estimés pour chaque variables + l'intercept (ordonnée à l'orgine).
+
+### Visualisations
 
 ```{r}
 coefficients <- coef(model)
@@ -320,10 +328,27 @@ odds.ratio(model)
 ggcoef_model(model, exponentiate = TRUE)
 ```
 
+### Prédictions
+
 ```{r}
-install.packages("effects")
-library(effects)
-plot(allEffects(model))
+
+probabilites <- model %>% 
+  predict(test_data, type = "response")
+
+predicted_classes <- ifelse(probabilities > 0.5, "pos", "neg")
+predicted_classes <- factor(predicted_classes, levels = c("neg", "pos"), labels = c(0, 1))
+
+print(length(predicted_classes))
+print(length(test_data$diabetes))
+# Model accuracy
+#mean(predicted_classes == test_data$diabetes)
+
+```
+
+#### Matrice de confusion
+
+```{r}
+confusionMatrix(data=predicted_classes, reference = data$diabetes)
 ```
 
 ## 2.2. Calculs
