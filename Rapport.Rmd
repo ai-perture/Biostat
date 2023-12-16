@@ -39,42 +39,59 @@ print(data, row.names=F)
 ```
 Le jeu de données contient le diagnostic (diabétique ou non) ainsi que la mesure de 8 autres variables (âge, IMC, nombre de grossesses, pression...) sur un ensemble de 768 femmes.
 
-# Question 0 - Prétraitement des données
+##### Question 0 - Prétraitement des données
 
-On a remarqué ci-dessus que certaines données étaient manquantes (matérialisées par NA dans le data-frame) : 
-```{r}
-summary(data)
-```
-On remarque qu'effectivement, les variables insulin et triceps présentent un grand nombre de données manquantes, respectivement presque la moitié (374/768) et un tiers (227/768).
+On a remarqué ci-dessus que certaines données étaient manquantes (matérialisées par NA dans le data-frame).
+
+On commence par regarder la quantité et la répartition de ces données manquantes :
 
 ```{r Données manquantes}
-vis_miss(data[,-1])
+summary(data) #donne le nombre de NA par variable
+vis_miss(data[,-1]) #graphe de répartition des NA par variable ; % de NA global et par variable
+md.pattern(data, rotate.names=TRUE) #visualisation des NA par entrée ; entrées qui cumulent plusieurs NA
 ```
-Les autres variables sont complètes où avec une faible proportion de NA.
+On remarque qu'effectivement, les variables insulin et triceps présentent un grand nombre de données manquantes, respectivement presque la moitié (374/768) et un tiers (227/768) des entrées.
+Les autres variables sont complètes où avec une faible proportion de NA (5% ou moins)
 En tout, 9.4% des données sont manquantes. 
 
-Dans la suite, on va utiliser le package mice (Multivariate Imputation via Chained Equations) qui permet qui permet de réaliser de l'imputation de données manquantes ; mais aussi de visualiser les données manquantes et d'anayse la qualité des valeurs imputées.
-
-Commençons par analyser un peu plus finement comment se répartissent les données manquantes :
-
-```{r}
-md.pattern(data, rotate.names=TRUE)
-```
-Ainsi, on peut voir que certaines entrées cumulent une absence de données dans 2, 3 ou 4 variables différentes. 
-Pour des raisons de cohérence des données, on décide d'écarter de la suite de l'étude celles où 3 ou 4 variables ne sont pas renseignées.
+Certaines entrées cumulent une absence de données dans 2, 3 ou 4 variables différentes. 
+Pour des raisons de cohérence des données, on décide d'écarter de la suite de l'étude celles où 3 ou 4 variables ne sont pas renseignées (soit 35 entrées).
 
 ```{r}
 data$nb_NA <- apply(data, MARGIN = 1, function(x){sum(is.na(x))})
 data_trie <- data |> subset(nb_NA < 3, select = - nb_NA)
-print(dim(data_trie))
 ```
 
+On vérifie la répartition des NA restants : 
+```{r}
+vis_miss(data_trie)
+md.pattern(data_trie, rotate.names=TRUE)
+```
+Il reste donc 7,4% de NA : la quasi-totalité concernent les variables insulin et triceps.
 
-
-En attendant de pouvoir extrapoler les valeurs manquantes, on enlèves les observations incomplètes.
+On va maintenant procéder à l'imputation des données pour données des valeurs à ces données manquantes. Pour cela on utilise le package MICE : Multivariate Imputation by Chained Equations. 
 
 ```{r}
-data = na.omit(data) #cela enlève presque la moitié des lignes -_-
+data_impute=mice(data_trie, m=5) #construction des imputations = valeurs manquantes ; on le fait 5 fois
+data_impute$meth #voir quelle méthode d'imputation a été utilisée pour chaque variable ; on peut spécifier si on veut utiliser une méthode en particulier
+```
+La méthode utlisée par défaut pour l'imputation des variables est le Predictive Mean Matching (pmm). C'est une méthode qui permet d'obtenir des données manquantes probables en les tirant aléatoirement du reste des données parmi celles qui sont le plus proche de la valeur prédites en fonction des autres variables.
+
+On a réalisé 5 imputations différentes, on va maintenant les observer pour vérifier qu'elles sont bien cohérentes.
+```{r}
+densityplot(data_impute, auto.key=TRUE)
+stripplot(data_impute, pressure + mass + glucose + triceps + insulin ~ .imp,cex = c(1.5), pch = c(20), jitter = TRUE, layout = c(5, 1))
+```
+Les différentes imputations correspondent raisonnablement aux données. 
+On complète le jeu de données avec une des imputations et on vérifie que toutes les données manquantes ont été complétées.
+
+```{r}
+data = complete(data_impute, 1)
+md.pattern(data, rotate.names=TRUE)
+```
+
+ce truc dessous on peut le bouger à plus tard non ?
+```{r}
 #On sépare les labels des variables 
 X = data[,2:(NCOL(data)-1)]
 y = data[, NCOL(data)]
@@ -82,19 +99,17 @@ y = factor(y, levels = c("neg", "pos"), labels = c(0, 1))
 print(typeof(y))
 ```
 
-# Question 1 - Analyse exploratoire des données
 
-## 1.1 - Distribution des variables
+##### Question 1 - Analyse exploratoire des données
+
+###1.1 - Distribution des variables
 
 1.1.
-Représenter la distribution de chaque variable explicative conditionnée par la variable diabetes.
-Observet- on des différences significatives ?
-En utilisant les tests statistiques qui conviennent (test de student, test du χ2, . . . ), vous justifierez soigneusement vos réponses en vous appuyant sur des critères de p-value ou autre intervalle de confiance.
-Dans toute la suite, vous travaillerez sur les données standardisées
+Représenter la distribution de chaque variable explicative conditionnée par la variable diabetes. Observe-t-on des différences significatives ? En utilisant les tests statistiques qui conviennent (test de student, test du χ2, . . . ), vous justifierez soigneusement vos réponses en vous appuyant sur des critères de p-value ou autre intervalle de confiance.
+(Dans toute la suite, vous travaillerez sur les données standardisées)
 
-Voir <https://www.datanovia.com/en/fr/lessons/test-t-dans-r/#t-test-pour-echantillons-independants> pour le t - test
 
-Note : Le *pedigree* est un score mesurant le risque familial du diabète.
+
 
 ```{r Moyennes}
 data %>%
@@ -274,7 +289,7 @@ fviz_pca_biplot(fit.pca, habillage = data$diabetes)
 
 ### Interprétation
 
-# Question 2 - Prédiction par régression logistique
+##### Question 2 - Prédiction par régression logistique
 
 ## 2.1 Régression logistique
 
@@ -359,9 +374,7 @@ plot(allEffects(model))
 ```
 
 ## 2.2. Calculs
-
 ## 2.3. Pénalité ℓ1 + ℓ2.
-
 ## 2.4. Modèle de régression logistique pénalisée ℓ1 +ℓ2
 
 pour prédire la variable diabetes à partir de l'ensemble des facteurs de risque.

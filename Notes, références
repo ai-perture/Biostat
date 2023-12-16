@@ -1,0 +1,12 @@
+
+Note : Le *pedigree* est un score mesurant le risque familial du diabète.
+
+Présentation concise de la méthode MICE pour l'imputation des données :
+https://www.em-consulte.com/article/228906/limputation-multiple-des-donnees-manquantes-aleato
+Bonne explication du fonctionnement de l'algorithme : 
+https://cran.r-project.org/web/packages/miceRanger/vignettes/miceAlgorithm.html
+
+T-test : 
+ <https://www.datanovia.com/en/fr/lessons/test-t-dans-r/#t-test-pour-echantillons-independants> 
+ 
+ 
