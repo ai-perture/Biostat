@@ -90,27 +90,11 @@ data = complete(data_impute, 1)
 md.pattern(data, rotate.names=TRUE)
 ```
 
-ce truc dessous on peut le bouger à plus tard non ?
-```{r}
-#On sépare les labels des variables 
-X = data[,2:(NCOL(data)-1)]
-y = data[, NCOL(data)]
-y = factor(y, levels = c("neg", "pos"), labels = c(0, 1))
-print(typeof(y))
-```
-
-
 ##### Question 1 - Analyse exploratoire des données
-
 ###1.1 - Distribution des variables
+On va s'intéresser dans cette partie à la distribution des variables explicatives en fonction de la variable diabetes. 
 
-1.1.
-Représenter la distribution de chaque variable explicative conditionnée par la variable diabetes. Observe-t-on des différences significatives ? En utilisant les tests statistiques qui conviennent (test de student, test du χ2, . . . ), vous justifierez soigneusement vos réponses en vous appuyant sur des critères de p-value ou autre intervalle de confiance.
-(Dans toute la suite, vous travaillerez sur les données standardisées)
-
-
-
-
+On commence par regarder la moyenne et la variance de chaque variable en fonction du diagnostic de la patiente :
 ```{r Moyennes}
 data %>%
   group_by(diabetes) %>%
@@ -118,15 +102,13 @@ data %>%
   #summarise_all(sd,na.rm = TRUE)
   #get_summary_stats(glucose, type = "mean_sd")
 ```
-
 ```{r Variances}
 data %>%
   group_by(diabetes) %>%
   summarise_at( c("pregnant", "glucose", "pressure", "triceps", "insulin", "mass","pedigree","age"),.f = list(sd = sd), na.rm = TRUE)
 ```
 
-### Représentation des distributions
-
+# Représentation des distributions
 ```{r, echo = TRUE, fig.align = 'center', fig.height = 7.5, fig.width = 7.5}
 data2 <- melt(data, id = "diabetes") 
 ggplot(data = data2, aes(x = diabetes, y = value, color = diabetes)) + 
@@ -142,10 +124,8 @@ ggplot(data = data2, aes(x = diabetes, y = value, color = diabetes)) +
         legend.position = "bottom") + xlab("") + ylab("") +
   scale_color_manual(values = c("springgreen4","firebrick3"))
 ```
-
-### Test statistique
-
-On a deux groupes selon le diabète: les négatifs, *neg*, et les positifs,*pos*, dont on voudrait regarder les différences de moyenne.
+# Test statistique
+On a deux groupes selon le diagnostic du diabète: les négatifs, *neg*, et les positifs,*pos*, dont on voudrait regarder les différences de moyenne. # de moyenne ? on regarde pas que ça non ?
 Pour cela, un test t de Student ou de Welch peut-être pertinent, pourvu que les conditions suivantes soient remplies:
 
 1.  Indépendance des observations. Chaque sujet ne doit appartenir qu'à un seul groupe. Il n'y a aucun lien entre les observations de chaque groupe. C'est bien vérifié dans notre cas, puisque les observations ne peuvent avoir qu'un seul label *diabetes* (*pos* ou *neg*). Les observations sont faites sur des femmes différentes, supposées sans lien.
@@ -154,11 +134,12 @@ Pour cela, un test t de Student ou de Welch peut-être pertinent, pourvu que les
 
 Le test de Student suppose que les variances entre les deux groupes sont similaires, ce qui n'est pas le cas du test de Welch.
 
-#### Valeurs aberrantes
-
+# Valeurs aberrantes
+On va commencer par observer les valeurs aberrantes pour chaque variable.
+On ne considère pas les valeurs aberrantes sur l'age, la masse ou le nombre de grossesses car il peut y avoir des variables extrêmes en fonction du groupe d'étude qui ne seront pas des erreurs de mesure.
 ```{r Valeurs aberrantes}
 # Variables à tester
-variables_a_tester <- c("pregnant", "glucose", "pressure", "triceps", "insulin", "mass", "pedigree", "age")
+variables_a_tester <- c("glucose", "pressure", "triceps", "insulin", "pedigree")
 
 # Utiliser la fonction map() pour identifier les outliers pour chaque variable
 outliers_list <- map(variables_a_tester, ~ data %>%
@@ -179,19 +160,19 @@ num_outliers <- outliers_combined %>%
 print(num_outliers)
 ```
 
-Il y a 19 observations aberrantes extrêmes.
-On les enlèvera de *data*.
-On peut considérer qu'il n'y pas de valeurs aberrantes sur l'age ou la masse + le nombre de grossesse car ces variables n'ont pas forcément une distribution normale.
+Il y a 32 observations aberrantes extrêmes.
+On construit un set de données "nettoyées" sans ces valeurs :
+```{r}
+data_clean<- anti_join(data, outliers_combined, by = "ID")
+```
 
-#### **Normalité par groupes**
+# Normalité par groupes
 
 On vérifie, pour chaque variable, si les groupes de données suivent une loi normale.
 On utilise à cet effet le test de Shapiro - Wilk.
 Si la p-value est inférieure à 0.005, on considère que les données ne suivent pas une loi normale.
 
 ```{r Shapiro-Wilk test}
-
-
 # Utiliser la fonction map() pour effectuer le test de Shapiro-Wilk sur chaque variable
 shapiro_tests <- map(variables_a_tester, ~ data %>%
                       group_by(diabetes) %>%
@@ -205,10 +186,9 @@ shapiro_combine <- bind_rows(shapiro_tests)
 # Afficher le tableau combiné
 print(shapiro_combine)
 ```
+La *p-value* est très faible pour tous les groupes donc on ne peut pas considérer que les données suivent une loi normale.
 
-La *p-value* est très faible pour tous les groupes donc on ne peut pas considérer de façon sûre que les données suivent une loi normale.
-
-#### t -test
+# t -test
 
 Pour évaluer les différences entre les deux groupes *pos* et *neg* selon les variables, on utilise un test statistique.
 
@@ -218,7 +198,6 @@ On s'autorise à faire le test de Welch pour comparer les résultats.
 
 ```{r Tests statistiques}
 # Variables à tester
-data_clean<- anti_join(data, outliers_combined, by = "ID")
 variables_a_tester <- c("pregnant", "glucose", "pressure", "triceps", "insulin", "mass", "pedigree", "age")
 
 # Le t-test classique - version par défaut de Welch
@@ -228,7 +207,6 @@ welch_tests <- map(variables_a_tester, ~ data_clean %>%
 welch_res <- bind_rows(welch_tests)%>% 
     select(-one_of("group1", "group2", "statistic","df"))%>%
     rename('Welch - p_value' = 'p', "Welch Signif" = 'p.signif')
-
 
 # Le test de Wilcox pour des données non normalisées 
 wilcox_tests <- map(variables_a_tester, ~ data_clean %>%
@@ -246,11 +224,17 @@ Pour chaque variables, et quelque soit le test, la *p-value* est très faible (i
 
 Il est donc raisonnable de considérer que pour chaque variable, la différence entre les deux groupes est significative.
 
-## 1.2 - Analyse en composante principale
+# 1.2 - Analyse en composante principale
+On va maintenant séparer le jeu de données avec les variables explicatives d'un côté et l'étiquette (diagnostic du diabète) de l'autre. On enlève la colonne ID qui n'a pas d'interêt explicatif.
 
-On fait l'analyse en enlevant les valeurs NA.
-[Voir question 0 pour remplacer les NA par des valeurs numériques].
-On enlève la colonne ID qui n'a pas d'interêt explicatif.
+```{r Séparation variables-labels}
+#On sépare les labels des variables 
+X = data[,2:(NCOL(data)-1)]
+y = data[, NCOL(data)]
+y = factor(y, levels = c("neg", "pos"), labels = c(0, 1))
+print(typeof(y))
+```
+
 Les données sont normalisées et centrées au sein de la fonction pca.
 
 ```{r, echo = TRUE, fig.align = 'center', fig.height = 5.5, fig.width = 5.5}
@@ -259,17 +243,11 @@ fit.pca <- prcomp(X, center = TRUE, scale = TRUE)
 
 ```{r}
 summary(fit.pca)
-```
 
-```{r}
 print(head(fit.pca$x))
-```
 
-```{r}
 fviz_screeplot(fit.pca, addlabels=TRUE)
-```
 
-```{r}
 indiv_pca <-fviz_pca_ind(fit.pca, habillage = data$diabetes) 
 indiv_pca
 # indiv_pca +
@@ -277,21 +255,18 @@ indiv_pca
 #                      breaks = c(0, 1),
 #                      labels = c("neg", "pos"),
 #                      name = "Individuals - PCA")
-```
 
-```{r}
 fviz_pca_var(fit.pca, repel = TRUE)
-```
 
-```{r}
 fviz_pca_biplot(fit.pca, habillage = data$diabetes)
 ```
+# Interprétation
+Le premier plan factoriel explique 49,85% de la variance.
+Les variables age, pregnant dans une moindre mesure triceps, mass sont celles pour lesquelles la longueur de la flèche est la plus importante, donc qui sont le plus représenté dans cette représentation en 2 dimensions. Elles sont toutes les quatre situé au milieu d'un quart de cercle, donc sont autant correlées à la dimension 1 qu'à la dimension 2. 
 
-### Interprétation
 
 ##### Question 2 - Prédiction par régression logistique
-
-## 2.1 Régression logistique
+### 2.1 Régression logistique
 
 **Faire une base test indépendante** ie séparer les données en deux sets : training_data et test_data.
 Par ex 80% et 20% des données exploitables.

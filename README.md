@@ -5,10 +5,7 @@
 stratégie permettant l’imputation des données manquantes de ce jeu de données.
 Dans toute la suite, vous travaillerez sur les données imputées.
 ## 1. Analyse exploratoire des données
-1.1. Représenter la distribution de chaque variable explicative conditionnée par la variable diabetes. Observet-
-on des différences significatives ? En utilisant les tests statistiques qui conviennent (test de student, test du
-χ2, . . . ), vous justifierez soigneusement vos réponses en vous appuyant sur des critères de p-value ou autre
-intervalle de confiance.
+1.1. Représenter la distribution de chaque variable explicative conditionnée par la variable diabetes. Observet-on des différences significatives ? En utilisant les tests statistiques qui conviennent (test de student, test du χ2, . . . ), vous justifierez soigneusement vos réponses en vous appuyant sur des critères de p-value ou autre intervalle de confiance.
 Dans toute la suite, vous travaillerez sur les données standardisées
 1.2. Réaliser une Analyse en Composantes Principales sur l’ensemble des variables explicatives. Interpréter
 les résultats.
