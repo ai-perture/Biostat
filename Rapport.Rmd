@@ -232,18 +232,14 @@ On va maintenant séparer le jeu de données avec les variables explicatives d'u
 X = data[,2:(NCOL(data)-1)]
 y = data[, NCOL(data)]
 y = factor(y, levels = c("neg", "pos"), labels = c(0, 1))
-print(typeof(y))
 ```
 
 Les données sont normalisées et centrées au sein de la fonction pca.
 
-```{r, echo = TRUE, fig.align = 'center', fig.height = 5.5, fig.width = 5.5}
-fit.pca <- prcomp(X, center = TRUE, scale = TRUE)
-```
-
 ```{r}
-summary(fit.pca)
+fit.pca <- prcomp(X, center = TRUE, scale = TRUE) #on construit le PCA en centrant (center) et normalisant (scale) les données
 
+summary(fit.pca)
 print(head(fit.pca$x))
 
 fviz_screeplot(fit.pca, addlabels=TRUE)
@@ -255,15 +251,28 @@ indiv_pca
 #                      breaks = c(0, 1),
 #                      labels = c("neg", "pos"),
 #                      name = "Individuals - PCA")
+#on peut l'enlever tout ça ?
 
 fviz_pca_var(fit.pca, repel = TRUE)
 
 fviz_pca_biplot(fit.pca, habillage = data$diabetes)
 ```
 # Interprétation
-Le premier plan factoriel explique 49,85% de la variance.
-Les variables age, pregnant dans une moindre mesure triceps, mass sont celles pour lesquelles la longueur de la flèche est la plus importante, donc qui sont le plus représenté dans cette représentation en 2 dimensions. Elles sont toutes les quatre situé au milieu d'un quart de cercle, donc sont autant correlées à la dimension 1 qu'à la dimension 2. 
+L'analyse en composante principale permet de représenter les données dans un plan en deux dimension qui est fonction des huit variables étudiées.
+Les deux premières composantes principales permettent d'expliquer 49,85% de la variance des données. 
 
+Les variables les mieux représentées dans ces deux dimensions sont age et pregnant d'une part ; triceps et mass d'autre part (car longueur de la flèche proche de 1). Ces deux couples de variables semblent corrélés car les flèches correspondantes pointent dans la même direction.
+
+On va regarder cela de plus près en affichant la matrice des corrélations : 
+
+```{r}
+corrplot(cor(X), type = "upper", addCoef.col = TRUE) #matrice des corrélations
+help(corrplot)
+
+ggpairs(data, columns = 2:(ncol(data)-1), ggplot2::aes(colour=diabetes), progress = FALSE)
+```
+On observe effectivement des corrélations >0,55 pour trois couples de variables dont les deux cités ci-dessus ainsi que glucose et insulin, mais ces corrélations ne sont pas très significatives.
+Dans le cas de age et pregnant on peut l'interpréter de la façon suivante : une femme qui a été enceinte de nombreuses fois est probablement âgée, mais une femme qui n'a jamais été enceinte n'est pas forcément jeune, d'où le fait que la corrélation ne soit pas très forte.
 
 ##### Question 2 - Prédiction par régression logistique
 ### 2.1 Régression logistique
@@ -273,7 +282,7 @@ Par ex 80% et 20% des données exploitables.
 
 Pour réaliser une régression logistique, il est nécessaire d'avoir un **nombre suffisant de données**.
 En pratique, il est recommandé d'avoir au moins **10 fois plus d'événements que de paramètres dans le modèle**.
-Ici, on a des centaines d'observations (pour chaque label), pour moins de 10 paramètres donc il y a suffisamment de données.
+Ici, on a des plusieurs centaines d'observations (pour chaque label), pour huit paramètres donc il y a suffisamment de données.
 
 ```{r Base test indépendante}
 nb_obs = NROW(data)
@@ -283,7 +292,6 @@ training_y = y[1:cut]
 test_X = X[cut+1:nb_obs,]
 test_y = y[cut+1:nb_obs]
 
-print(data)
 data <- read.csv('diabetes.csv')
 data <- na.omit(data)
 #data <- mutate(data, diabetes = ifelse(diabetes == "neg", int(0), ifelse(diabetes == "pos", numeric(1), diabetes)))
@@ -348,9 +356,9 @@ library(effects)
 plot(allEffects(model))
 ```
 
-## 2.2. Calculs
-## 2.3. Pénalité ℓ1 + ℓ2.
-## 2.4. Modèle de régression logistique pénalisée ℓ1 +ℓ2
+### 2.2. Calculs
+### 2.3. Pénalité ℓ1 + ℓ2.
+### 2.4. Modèle de régression logistique pénalisée ℓ1 +ℓ2
 
 pour prédire la variable diabetes à partir de l'ensemble des facteurs de risque.
 Quelles variables semblent les plus pertinentes ?
@@ -362,10 +370,10 @@ Vous veillerez à optimiser les paramètres de ce modèle par cross-validation.
 Remarque 2.
 En utilisant l'argument weights de la fonction glmnet(), il est possible de gérer le déséquilibre des classes.
 
-## 2.5. Comparaison avec la selection de variable pas - à - pas
+### 2.5. Comparaison avec la selection de variable pas - à - pas
 
 Comparer vos résultats issus de la régression logistique pénalisée ℓ1 + ℓ2 au résultat d'une méthode de
 
 sélection de variables pas-à-pas (step() en R).
 
-## 2.6. Conclusion
+### 2.6. Conclusion
