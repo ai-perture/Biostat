@@ -67,8 +67,8 @@ data_trie <- data |> subset(nb_NA < 3, select = - nb_NA)
 
 On vérifie la répartition des NA restants : 
 ```{r}
-vis_miss(data_trie)
-md.pattern(data_trie, rotate.names=TRUE)
+visu_NA <- vis_miss(data_trie)
+grille <- md.pattern(data_trie, rotate.names=TRUE)
 ```
 Il reste donc 7,4% de NA : la quasi-totalité concernent les variables insulin et triceps.
 
@@ -81,9 +81,11 @@ data_impute$meth #voir quelle méthode d'imputation a été utilisée pour chaqu
 La méthode utlisée par défaut pour l'imputation des variables est le Predictive Mean Matching (pmm). C'est une méthode qui permet d'obtenir des données manquantes probables en les tirant aléatoirement du reste des données parmi celles qui sont le plus proche de la valeur prédites en fonction des autres variables.
 
 On a réalisé 5 imputations différentes, on va maintenant les observer pour vérifier qu'elles sont bien cohérentes.
-```{r}
-densityplot(data_impute, auto.key=TRUE)
-stripplot(data_impute, pressure + mass + glucose + triceps + insulin ~ .imp,cex = c(1.5), pch = c(20), jitter = TRUE, layout = c(5, 1))
+```{r, echo = TRUE, fig.align = 'center', fig.height = 7.5, fig.width = 7.5}
+dens_plot <- densityplot(data_impute, auto.key=TRUE)
+strip_plot <- stripplot(data_impute, pressure + mass + glucose + triceps + insulin ~ .imp,cex = c(1.5), pch = c(20), jitter = TRUE, layout = c(5, 1))
+
+grid.arrange(dens_plot, strip_plot, ncol = 1, nrow=2)
 ```
 Les différentes imputations correspondent raisonnablement aux données. 
 On complète le jeu de données avec une des imputations et on vérifie que toutes les données manquantes ont été complétées.
@@ -167,6 +169,7 @@ Il y a 32 observations aberrantes extrêmes.
 On construit un set de données "nettoyées" sans ces valeurs :
 ```{r}
 data_clean<- anti_join(data, outliers_combined, by = "ID")
+#dans la suite on travaille sur le jeu de données sans les valeurs aberrantes ??
 ```
 
 # Normalité par groupes
@@ -231,10 +234,10 @@ Il est donc raisonnable de considérer que pour chaque variable, la différence 
 On va maintenant séparer le jeu de données avec les variables explicatives d'un côté et l'étiquette (diagnostic du diabète) de l'autre. On enlève la colonne ID qui n'a pas d'interêt explicatif.
 
 ```{r Séparation variables-labels}
-#On sépare les labels des variables 
+#On sépare les labels des variables après avoir remplacer les étiquettes de la colonne diabetes par 0 ou 1
+data$diabetes <- factor(data$diabetes, levels = c("neg", "pos"), labels = c(0, 1))
 X = data[,2:(NCOL(data)-1)]
 y = data[, NCOL(data)]
-y = factor(y, levels = c("neg", "pos"), labels = c(0, 1))
 ```
 
 Les données sont normalisées et centrées au sein de la fonction pca.
@@ -257,7 +260,6 @@ fviz_pca_biplot(fit.pca, habillage = data$diabetes)
 plotScree <-fviz_screeplot(fit.pca, addlabels=TRUE)
 plotPcaIndiv <-fviz_pca_ind(fit.pca, habillage = data$diabetes) 
 plotPcaVar <- fviz_pca_var(fit.pca, repel = TRUE)
-
 plotPcaBiplot <- fviz_pca_biplot(fit.pca, habillage = data$diabetes)
 
 grid.arrange(plotScree, plotPcaIndiv, plotPcaVar,plotPcaBiplot, ncol = 2, nrow=2)
@@ -282,15 +284,15 @@ Dans le cas de age et pregnant on peut l'interpréter de la façon suivante : un
 ##### Question 2 - Prédiction par régression logistique
 ### 2.1 Régression logistique
 
-**Faire une base test indépendante** ie séparer les données en deux sets : training_data et test_data.
+On commence par **faire une base test indépendante** ie séparer les données en deux sets : training_data et test_data.
 Par ex 80% et 20% des données exploitables.
 
 Pour réaliser une régression logistique, il est nécessaire d'avoir un **nombre suffisant de données**.
 En pratique, il est recommandé d'avoir au moins **10 fois plus d'événements que de paramètres dans le modèle**.
 Ici, on a des plusieurs centaines d'observations (pour chaque label), pour huit paramètres donc il y a suffisamment de données.
 
-<<<<<<< HEAD
 ```{r Séparation en groupe test et groupe d'entraînement}
+##Sans doute à virer après, àlà c'est juste au cas où
 nb_obs = NROW(data)
 cut = round(0.8*nb_obs)
 training_X = X[1:cut,] #labels du groupe test
@@ -298,37 +300,20 @@ training_y = y[1:cut] #labels du groupe d'entraînement
 test_X = X[cut+1:nb_obs,] 
 test_y = y[cut+1:nb_obs]
 
-training_data = data[1:cut,2:ncol(data)]
-test_data = data[cut+1:nb_obs,2:ncol(data)]
-
-#voir selon la suite si on a besoin de garder les deux versions ou une seule
-=======
-### Base test
-
-```{r Base test indépendante}
-data <- read.csv('diabetes.csv')
-data <- na.omit(data)
-data$diabetes = factor(data$diabetes, levels = c("neg", "pos"), labels = c(0, 1))
-
-
 # Fixez une graine aléatoire pour la reproductibilité
 set.seed(123)
 
 # Générez un vecteur d'indices pour l'ensemble d'entraînement (80% des données)
 indice <- sample(seq_len(nrow(data)), size = round(0.8 * nrow(data)), replace = FALSE)
 # Créez l'ensemble d'entraînement
-training_data <- data[indice, ]
+training_data <- data[indice, -1 ]
 # Créez l'ensemble de test en excluant les indices de l'ensemble d'entraînement
-test_data <- data[-indice, ]
-
-print(test_data)
->>>>>>> 45cc3419e621205973a49369b95dea40d7d77261
+test_data <- data[-indice, -1 ]
 ```
 
-### Entrainement
+#Entrainement
 
 ```{r Régression logistique}
-
 # X ne contient pas les ID qui ne sont pas une variable explicative 
 model <- glm(diabetes ~ pregnant +glucose + pressure + triceps + insulin + mass + pedigree + age, data = training_data, family = "binomial")
 model_res <- summary(model)
@@ -340,14 +325,9 @@ order_indices <- order(abs(model_res$coefficients[, 1]), decreasing = TRUE)
 model_res$coefficients <- model_res$coefficients[order_indices, ]
 print(model_res)
 ```
-
-Modèle que l'on obtient
-
-$$
-diabetes = 0.11*pregnant + 0.036*glucose + 0.0013*pressure + 0.0066*triceps - 9*10^{-4}*insulin + 0.085*mass + 1.2*pedigree + 0.029*age - 10.2 
-$$
-
-ie les coefficients estimés pour chaque variables + l'intercept (ordonnée à l'orgine).
+On peut maintenant mettre notre modèle sous équation cf lien dans notes et réf.
+Attention, facteur exp comme on est dans un modèle avec famille binomial : faire attention quand on interprète les valeurs relatives des différents coefficients.
+==> à faire
 
 ### Visualisations
 
@@ -372,7 +352,7 @@ grid.arrange(plotCoef, plotOR, ncol = 2)
 
 On pourrait regarder les *odd ratios* OR qui représentent l'influence d'un paramètre --\> A creuser ...
 
-Le plus gros facteurs de risque est le pédigré en premier (coefficient et odd ration importants).
+Le plus gros facteurs de risque est le pédigré en premier (coefficient et odd ration importants). On trouve le facteur pregnant en deuxième.
 
 ### Prédictions
 
@@ -390,11 +370,6 @@ confusionMatrix(data=predicted_classes, reference = data$diabetes)
 
 A ce stade, l'accuracy est assez faible (légèrement supérieure à 50%).
 
-<<<<<<< HEAD
-### 2.2. Calculs
-### 2.3. Pénalité ℓ1 + ℓ2.
-### 2.4. Modèle de régression logistique pénalisée ℓ1 +ℓ2
-=======
 ## 2.2. Calculs
 
 Elastic Net Regression, vidéo pour comprendre : <https://www.youtube.com/watch?v=ctmNq7FgbvI> 
@@ -406,7 +381,6 @@ Caractère parcimonieux = condition mathématique que le modèle doit vérifier.
 Trouver un cours -\> La démo peut se trouver :-) (on va pas la faire nous meme quand meme).
 
 ## 2.4. Modèle de régression logistique pénalisée ℓ1 +ℓ2
->>>>>>> 45cc3419e621205973a49369b95dea40d7d77261
 
 pour prédire la variable diabetes à partir de l'ensemble des facteurs de risque.
 Quelles variables semblent les plus pertinentes ?
@@ -436,7 +410,6 @@ coef(model2, s = 0.1)
 ```
 
 ## 2.5. Comparaison avec la selection de variable pas - à - pas
->>>>>>> 45cc3419e621205973a49369b95dea40d7d77261
 
 Comparer vos résultats issus de la régression logistique pénalisée ℓ1 + ℓ2 au résultat d'une méthode de
 
