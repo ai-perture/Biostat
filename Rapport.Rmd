@@ -355,6 +355,8 @@ En utilisant l'argument weights de la fonction glmnet(), il est possible de gér
 
 <http://www.sthda.com/english/articles/36-classification-methods-essentials/149-penalized-logistic-regression-essentials-in-r-ridge-lasso-and-elastic-net/>
 
+**Trouver le bon alpha** + **Quelles données mettre dans ce deuxième modèle?**
+
 ```{r}
 
 library(glmnet)
