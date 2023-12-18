@@ -284,22 +284,18 @@ Pour réaliser une régression logistique, il est nécessaire d'avoir un **nomb
 En pratique, il est recommandé d'avoir au moins **10 fois plus d'événements que de paramètres dans le modèle**.
 Ici, on a des plusieurs centaines d'observations (pour chaque label), pour huit paramètres donc il y a suffisamment de données.
 
-```{r Base test indépendante}
+```{r Séparation en groupe test et groupe d'entraînement}
 nb_obs = NROW(data)
 cut = round(0.8*nb_obs)
-training_X = X[1:cut,]
-training_y = y[1:cut]
-test_X = X[cut+1:nb_obs,]
+training_X = X[1:cut,] #labels du groupe test
+training_y = y[1:cut] #labels du groupe d'entraînement
+test_X = X[cut+1:nb_obs,] 
 test_y = y[cut+1:nb_obs]
 
-data <- read.csv('diabetes.csv')
-data <- na.omit(data)
-#data <- mutate(data, diabetes = ifelse(diabetes == "neg", int(0), ifelse(diabetes == "pos", numeric(1), diabetes)))
-data$diabetes = factor(data$diabetes, levels = c("neg", "pos"), labels = c(0, 1))
-training_data = data[1:cut,2:NCOL(data)]
-test_data = data[cut+1: nb_obs,2:NCOL(data)]
+training_data = data[1:cut,2:ncol(data)]
+test_data = data[cut+1:nb_obs,2:ncol(data)]
 
-print(training_data)
+#voir selon la suite si on a besoin de garder les deux versions ou une seule
 ```
 
 ```{r Régression logistique}
@@ -319,7 +315,7 @@ print(model_res)
 Modèle que l'on obtient
 
 $$
-diabete = 0.11*pregnant + 0.036*glucose + 0.0013*pressure + 0.0066*triceps - 9*10^{-4}*insulin + 0.085*mass + 1.2*pedigree + 0.029*age - 10.2 
+diabetes = 0.11*pregnant + 0.036*glucose + 0.0013*pressure + 0.0066*triceps - 9*10^{-4}*insulin + 0.085*mass + 1.2*pedigree + 0.029*age - 10.2 
 $$
 
 ie les coefficients estimés pour chaque variables + l'intercept (ordonnée à l'orgine).
