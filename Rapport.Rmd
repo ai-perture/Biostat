@@ -24,14 +24,10 @@ library(pheatmap)
 library(dplyr)
 #library(outliers)
 library(purrr)
-<<<<<<< HEAD
 library(mice)
 library(tidyr)
-=======
 library(caret)
 library(questionr)
-
->>>>>>> 45cc3419e621205973a49369b95dea40d7d77261
 ```
 
 # Biostatistique : Etude du diabète
@@ -243,29 +239,21 @@ y = factor(y, levels = c("neg", "pos"), labels = c(0, 1))
 
 Les données sont normalisées et centrées au sein de la fonction pca.
 
-```{r}
+```{r, echo = TRUE, fig.align = 'center', fig.height = 9, fig.width = 10}}
 fit.pca <- prcomp(X, center = TRUE, scale = TRUE) #on construit le PCA en centrant (center) et normalisant (scale) les données
 
 summary(fit.pca)
 print(head(fit.pca$x))
 
-<<<<<<< HEAD
 fviz_screeplot(fit.pca, addlabels=TRUE)
 
 indiv_pca <-fviz_pca_ind(fit.pca, habillage = data$diabetes) 
 indiv_pca
-# indiv_pca +
-#   scale_color_manual(values = c("0" = "cyan", "1" = "red"),
-#                      breaks = c(0, 1),
-#                      labels = c("neg", "pos"),
-#                      name = "Individuals - PCA")
-#on peut l'enlever tout ça ?
 
 fviz_pca_var(fit.pca, repel = TRUE)
 
 fviz_pca_biplot(fit.pca, habillage = data$diabetes)
-=======
-```{r, echo = TRUE, fig.align = 'center', fig.height = 9, fig.width = 10}
+
 plotScree <-fviz_screeplot(fit.pca, addlabels=TRUE)
 plotPcaIndiv <-fviz_pca_ind(fit.pca, habillage = data$diabetes) 
 plotPcaVar <- fviz_pca_var(fit.pca, repel = TRUE)
@@ -273,7 +261,6 @@ plotPcaVar <- fviz_pca_var(fit.pca, repel = TRUE)
 plotPcaBiplot <- fviz_pca_biplot(fit.pca, habillage = data$diabetes)
 
 grid.arrange(plotScree, plotPcaIndiv, plotPcaVar,plotPcaBiplot, ncol = 2, nrow=2)
->>>>>>> 45cc3419e621205973a49369b95dea40d7d77261
 ```
 # Interprétation
 L'analyse en composante principale permet de représenter les données dans un plan en deux dimension qui est fonction des huit variables étudiées.
