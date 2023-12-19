@@ -311,7 +311,7 @@ training_data <- data[indice, -1 ]
 test_data <- data[-indice, -1 ]
 ```
 
-#Entrainement
+###Entrainement
 
 ```{r Régression logistique}
 # X ne contient pas les ID qui ne sont pas une variable explicative 
@@ -392,10 +392,9 @@ Vous veillerez à optimiser les paramètres de ce modèle par cross-validation.
 Remarque 2.
 En utilisant l'argument weights de la fonction glmnet(), il est possible de gérer le déséquilibre des classes.
 
-<<<<<<< HEAD
-### 2.5. Comparaison avec la selection de variable pas - à - pas
-=======
-<http://www.sthda.com/english/articles/36-classification-methods-essentials/149-penalized-logistic-regression-essentials-in-r-ridge-lasso-and-elastic-net/>
+## 2.5. Comparaison avec la selection de variable pas - à - pas
+
+<http://www.sthda.com/english/articles/36-classification-methods-essentials/149-penalized-logistic-regression-essentials-in-r-ridge-lasso-and-elastic-net/> 
 
 **Trouver le bon alpha** + **Quelles données mettre dans ce deuxième modèle?**
 
