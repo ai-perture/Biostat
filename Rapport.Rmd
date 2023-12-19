@@ -40,9 +40,10 @@ Nous allons au cours de ce travail construire un modèle de prédiction du diab�
 data <- read.csv('diabetes.csv')
 print(data, row.names=F)
 ```
+
 Le jeu de données contient le diagnostic (diabétique ou non) ainsi que la mesure de 8 autres variables (âge, IMC, nombre de grossesses, pression...) sur un ensemble de 768 femmes.
 
-##### Question 0 - Prétraitement des données
+# Question 0 - Prétraitement des données
 
 On a remarqué ci-dessus que certaines données étaient manquantes (matérialisées par NA dans le data-frame).
 
@@ -53,11 +54,11 @@ summary(data) #donne le nombre de NA par variable
 vis_miss(data[,-1]) #graphe de répartition des NA par variable ; % de NA global et par variable
 md.pattern(data, rotate.names=TRUE) #visualisation des NA par entrée ; entrées qui cumulent plusieurs NA
 ```
-On remarque qu'effectivement, les variables insulin et triceps présentent un grand nombre de données manquantes, respectivement presque la moitié (374/768) et un tiers (227/768) des entrées.
-Les autres variables sont complètes où avec une faible proportion de NA (5% ou moins)
-En tout, 9.4% des données sont manquantes. 
 
-Certaines entrées cumulent une absence de données dans 2, 3 ou 4 variables différentes. 
+On remarque qu'effectivement, les variables insulin et triceps présentent un grand nombre de données manquantes, respectivement presque la moitié (374/768) et un tiers (227/768) des entrées.
+Les autres variables sont complètes où avec une faible proportion de NA (5% ou moins) En tout, 9.4% des données sont manquantes.
+
+Certaines entrées cumulent une absence de données dans 2, 3 ou 4 variables différentes.
 Pour des raisons de cohérence des données, on décide d'écarter de la suite de l'étude celles où 3 ou 4 variables ne sont pas renseignées (soit 35 entrées).
 
 ```{r}
@@ -65,29 +66,36 @@ data$nb_NA <- apply(data, MARGIN = 1, function(x){sum(is.na(x))})
 data_trie <- data |> subset(nb_NA < 3, select = - nb_NA)
 ```
 
-On vérifie la répartition des NA restants : 
+On vérifie la répartition des NA restants :
+
 ```{r}
 visu_NA <- vis_miss(data_trie)
 grille <- md.pattern(data_trie, rotate.names=TRUE)
 ```
+
 Il reste donc 7,4% de NA : la quasi-totalité concernent les variables insulin et triceps.
 
-On va maintenant procéder à l'imputation des données pour données des valeurs à ces données manquantes. Pour cela on utilise le package MICE : Multivariate Imputation by Chained Equations. 
+On va maintenant procéder à l'imputation des données pour données des valeurs à ces données manquantes.
+Pour cela on utilise le package MICE : Multivariate Imputation by Chained Equations.
 
 ```{r}
 data_impute=mice(data_trie, m=5) #construction des imputations = valeurs manquantes ; on le fait 5 fois
 data_impute$meth #voir quelle méthode d'imputation a été utilisée pour chaque variable ; on peut spécifier si on veut utiliser une méthode en particulier
 ```
-La méthode utlisée par défaut pour l'imputation des variables est le Predictive Mean Matching (pmm). C'est une méthode qui permet d'obtenir des données manquantes probables en les tirant aléatoirement du reste des données parmi celles qui sont le plus proche de la valeur prédites en fonction des autres variables.
+
+La méthode utlisée par défaut pour l'imputation des variables est le Predictive Mean Matching (pmm).
+C'est une méthode qui permet d'obtenir des données manquantes probables en les tirant aléatoirement du reste des données parmi celles qui sont le plus proche de la valeur prédites en fonction des autres variables.
 
 On a réalisé 5 imputations différentes, on va maintenant les observer pour vérifier qu'elles sont bien cohérentes.
+
 ```{r, echo = TRUE, fig.align = 'center', fig.height = 7.5, fig.width = 7.5}
 dens_plot <- densityplot(data_impute, auto.key=TRUE)
 strip_plot <- stripplot(data_impute, pressure + mass + glucose + triceps + insulin ~ .imp,cex = c(1.5), pch = c(20), jitter = TRUE, layout = c(5, 1))
 
 grid.arrange(dens_plot, strip_plot, ncol = 1, nrow=2)
 ```
-Les différentes imputations correspondent raisonnablement aux données. 
+
+Les différentes imputations correspondent raisonnablement aux données.
 On complète le jeu de données avec une des imputations et on vérifie que toutes les données manquantes ont été complétées.
 
 ```{r}
@@ -95,11 +103,12 @@ data = complete(data_impute, 1)
 md.pattern(data, rotate.names=TRUE)
 ```
 
-##### Question 1 - Analyse exploratoire des données
-###1.1 - Distribution des variables
-On va s'intéresser dans cette partie à la distribution des variables explicatives en fonction de la variable diabetes. 
+# Question 1 - Analyse exploratoire des données
+
+###1.1 - Distribution des variables On va s'intéresser dans cette partie à la distribution des variables explicatives en fonction de la variable diabetes.
 
 On commence par regarder la moyenne et la variance de chaque variable en fonction du diagnostic de la patiente :
+
 ```{r Moyennes}
 data %>%
   group_by(diabetes) %>%
@@ -107,13 +116,15 @@ data %>%
   #summarise_all(sd,na.rm = TRUE)
   #get_summary_stats(glucose, type = "mean_sd")
 ```
+
 ```{r Variances}
 data %>%
   group_by(diabetes) %>%
   summarise_at( c("pregnant", "glucose", "pressure", "triceps", "insulin", "mass","pedigree","age"),.f = list(sd = sd), na.rm = TRUE)
 ```
 
-# Représentation des distributions
+## Représentation des distributions
+
 ```{r, echo = TRUE, fig.align = 'center', fig.height = 7.5, fig.width = 7.5}
 data2 <- melt(data, id = "diabetes") 
 ggplot(data = data2, aes(x = diabetes, y = value, color = diabetes)) + 
@@ -129,8 +140,12 @@ ggplot(data = data2, aes(x = diabetes, y = value, color = diabetes)) +
         legend.position = "bottom") + xlab("") + ylab("") +
   scale_color_manual(values = c("springgreen4","firebrick3"))
 ```
-# Test statistique
-On a deux groupes selon le diagnostic du diabète: les négatifs, *neg*, et les positifs,*pos*, dont on voudrait regarder les différences de moyenne. # de moyenne ? on regarde pas que ça non ?
+
+## Test statistique
+
+On a deux groupes selon le diagnostic du diabète: les négatifs, *neg*, et les positifs,*pos*, dont on voudrait regarder les différences de moyenne.
+# de moyenne ?
+on regarde pas que ça non ?
 Pour cela, un test t de Student ou de Welch peut-être pertinent, pourvu que les conditions suivantes soient remplies:
 
 1.  Indépendance des observations. Chaque sujet ne doit appartenir qu'à un seul groupe. Il n'y a aucun lien entre les observations de chaque groupe. C'est bien vérifié dans notre cas, puisque les observations ne peuvent avoir qu'un seul label *diabetes* (*pos* ou *neg*). Les observations sont faites sur des femmes différentes, supposées sans lien.
@@ -139,9 +154,11 @@ Pour cela, un test t de Student ou de Welch peut-être pertinent, pourvu que les
 
 Le test de Student suppose que les variances entre les deux groupes sont similaires, ce qui n'est pas le cas du test de Welch.
 
-# Valeurs aberrantes
+## Valeurs aberrantes
+
 On va commencer par observer les valeurs aberrantes pour chaque variable.
 On ne considère pas les valeurs aberrantes sur l'age, la masse ou le nombre de grossesses car il peut y avoir des variables extrêmes en fonction du groupe d'étude qui ne seront pas des erreurs de mesure.
+
 ```{r Valeurs aberrantes}
 # Variables à tester
 variables_a_tester <- c("glucose", "pressure", "triceps", "insulin", "pedigree")
@@ -167,12 +184,13 @@ print(num_outliers)
 
 Il y a 32 observations aberrantes extrêmes.
 On construit un set de données "nettoyées" sans ces valeurs :
+
 ```{r}
 data_clean<- anti_join(data, outliers_combined, by = "ID")
 #dans la suite on travaille sur le jeu de données sans les valeurs aberrantes ??
 ```
 
-# Normalité par groupes
+## Normalité par groupes
 
 On vérifie, pour chaque variable, si les groupes de données suivent une loi normale.
 On utilise à cet effet le test de Shapiro - Wilk.
@@ -192,9 +210,10 @@ shapiro_combine <- bind_rows(shapiro_tests)
 # Afficher le tableau combiné
 print(shapiro_combine)
 ```
+
 La *p-value* est très faible pour tous les groupes donc on ne peut pas considérer que les données suivent une loi normale.
 
-# t -test
+## t -test
 
 Pour évaluer les différences entre les deux groupes *pos* et *neg* selon les variables, on utilise un test statistique.
 
@@ -231,7 +250,9 @@ Pour chaque variables, et quelque soit le test, la *p-value* est très faible (i
 Il est donc raisonnable de considérer que pour chaque variable, la différence entre les deux groupes est significative.
 
 # 1.2 - Analyse en composante principale
-On va maintenant séparer le jeu de données avec les variables explicatives d'un côté et l'étiquette (diagnostic du diabète) de l'autre. On enlève la colonne ID qui n'a pas d'interêt explicatif.
+
+On va maintenant séparer le jeu de données avec les variables explicatives d'un côté et l'étiquette (diagnostic du diabète) de l'autre.
+On enlève la colonne ID qui n'a pas d'interêt explicatif.
 
 ```{r Séparation variables-labels}
 #On sépare les labels des variables après avoir remplacer les étiquettes de la colonne diabetes par 0 ou 1
@@ -264,13 +285,16 @@ plotPcaBiplot <- fviz_pca_biplot(fit.pca, habillage = data$diabetes)
 
 grid.arrange(plotScree, plotPcaIndiv, plotPcaVar,plotPcaBiplot, ncol = 2, nrow=2)
 ```
-# Interprétation
+
+#### Interprétation
+
 L'analyse en composante principale permet de représenter les données dans un plan en deux dimension qui est fonction des huit variables étudiées.
-Les deux premières composantes principales permettent d'expliquer 49,85% de la variance des données. 
+Les deux premières composantes principales permettent d'expliquer 49,85% de la variance des données.
 
-Les variables les mieux représentées dans ces deux dimensions sont age et pregnant d'une part ; triceps et mass d'autre part (car longueur de la flèche proche de 1). Ces deux couples de variables semblent corrélés car les flèches correspondantes pointent dans la même direction.
+Les variables les mieux représentées dans ces deux dimensions sont age et pregnant d'une part ; triceps et mass d'autre part (car longueur de la flèche proche de 1).
+Ces deux couples de variables semblent corrélés car les flèches correspondantes pointent dans la même direction.
 
-On va regarder cela de plus près en affichant la matrice des corrélations : 
+On va regarder cela de plus près en affichant la matrice des corrélations :
 
 ```{r}
 corrplot(cor(X), type = "upper", addCoef.col = TRUE) #matrice des corrélations
@@ -278,11 +302,13 @@ help(corrplot)
 
 ggpairs(data, columns = 2:(ncol(data)-1), ggplot2::aes(colour=diabetes), progress = FALSE)
 ```
-On observe effectivement des corrélations >0,55 pour trois couples de variables dont les deux cités ci-dessus ainsi que glucose et insulin, mais ces corrélations ne sont pas très significatives.
+
+On observe effectivement des corrélations \>0,55 pour trois couples de variables dont les deux cités ci-dessus ainsi que glucose et insulin, mais ces corrélations ne sont pas très significatives.
 Dans le cas de age et pregnant on peut l'interpréter de la façon suivante : une femme qui a été enceinte de nombreuses fois est probablement âgée, mais une femme qui n'a jamais été enceinte n'est pas forcément jeune, d'où le fait que la corrélation ne soit pas très forte.
 
-##### Question 2 - Prédiction par régression logistique
-### 2.1 Régression logistique
+# Question 2 - Prédiction par régression logistique
+
+## 2.1 Régression logistique
 
 On commence par **faire une base test indépendante** ie séparer les données en deux sets : training_data et test_data.
 Par ex 80% et 20% des données exploitables.
@@ -292,13 +318,13 @@ En pratique, il est recommandé d'avoir au moins **10 fois plus d'événements 
 Ici, on a des plusieurs centaines d'observations (pour chaque label), pour huit paramètres donc il y a suffisamment de données.
 
 ```{r Séparation en groupe test et groupe d'entraînement}
-##Sans doute à virer après, àlà c'est juste au cas où
-nb_obs = NROW(data)
-cut = round(0.8*nb_obs)
-training_X = X[1:cut,] #labels du groupe test
-training_y = y[1:cut] #labels du groupe d'entraînement
-test_X = X[cut+1:nb_obs,] 
-test_y = y[cut+1:nb_obs]
+# ##Sans doute à virer après, àlà c'est juste au cas où
+# nb_obs = NROW(data)
+# cut = round(0.8*nb_obs)
+# training_X = X[1:cut,] #labels du groupe test
+# training_y = y[1:cut] #labels du groupe d'entraînement
+# test_X = X[cut+1:nb_obs,] 
+# test_y = y[cut+1:nb_obs]
 
 # Fixez une graine aléatoire pour la reproductibilité
 set.seed(123)
@@ -311,7 +337,7 @@ training_data <- data[indice, -1 ]
 test_data <- data[-indice, -1 ]
 ```
 
-###Entrainement
+### Entrainement
 
 ```{r Régression logistique}
 # X ne contient pas les ID qui ne sont pas une variable explicative 
@@ -325,9 +351,10 @@ order_indices <- order(abs(model_res$coefficients[, 1]), decreasing = TRUE)
 model_res$coefficients <- model_res$coefficients[order_indices, ]
 print(model_res)
 ```
+
 On peut maintenant mettre notre modèle sous équation cf lien dans notes et réf.
 Attention, facteur exp comme on est dans un modèle avec famille binomial : faire attention quand on interprète les valeurs relatives des différents coefficients.
-==> à faire
+==\> à faire
 
 ### Visualisations
 
@@ -352,7 +379,8 @@ grid.arrange(plotCoef, plotOR, ncol = 2)
 
 On pourrait regarder les *odd ratios* OR qui représentent l'influence d'un paramètre --\> A creuser ...
 
-Le plus gros facteurs de risque est le pédigré en premier (coefficient et odd ration importants). On trouve le facteur pregnant en deuxième.
+Le plus gros facteurs de risque est le pédigré en premier (coefficient et odd ration importants).
+On trouve le facteur pregnant en deuxième.
 
 ### Prédictions
 
@@ -360,12 +388,15 @@ Le plus gros facteurs de risque est le pédigré en premier (coefficient et odd 
 probabilites <- model %>% 
   predict(test_data, type = "response")
 
-predicted_classes <- ifelse(probabilities > 0.5, "pos", "neg")
+
+predicted_classes <- ifelse(probabilites > 0.5, "pos", "neg")
 predicted_classes <- factor(predicted_classes, levels = c("neg", "pos"), labels = c(0, 1))
+print(length(predicted_classes))
+print(nrow(test_data))
 ```
 
 ```{r}
-confusionMatrix(data=predicted_classes, reference = data$diabetes)
+confusionMatrix(data=predicted_classes, reference = test_data$diabetes)
 ```
 
 A ce stade, l'accuracy est assez faible (légèrement supérieure à 50%).
@@ -392,9 +423,7 @@ Vous veillerez à optimiser les paramètres de ce modèle par cross-validation.
 Remarque 2.
 En utilisant l'argument weights de la fonction glmnet(), il est possible de gérer le déséquilibre des classes.
 
-## 2.5. Comparaison avec la selection de variable pas - à - pas
-
-<http://www.sthda.com/english/articles/36-classification-methods-essentials/149-penalized-logistic-regression-essentials-in-r-ridge-lasso-and-elastic-net/> 
+<http://www.sthda.com/english/articles/36-classification-methods-essentials/149-penalized-logistic-regression-essentials-in-r-ridge-lasso-and-elastic-net/>
 
 **Trouver le bon alpha** + **Quelles données mettre dans ce deuxième modèle?**
 
@@ -408,6 +437,64 @@ plot(model2, label = TRUE, ylim = c(-0.1, 0.1))
 
 ```{r}
 coef(model2, s = 0.1)
+```
+
+```{r}
+# Paramètres alpha et lambda pour la régularisation Elastic Net
+alpha <- 0.5  # ajustez la valeur selon vos besoins (0 correspond à la régularisation Ridge, 1 à la régularisation Lasso)
+lambda <- 0.1  # ajustez la valeur selon vos besoins, contrôle le niveau global de régularisation
+
+# Appliquer la régression Elastic Net
+modelnet <- glmnet(training_data[,2:(NCOL(data)-1)], training_data$diabetes, alpha = alpha, lambda = lambda, family = "binomial")
+
+# Prédictions sur les données de test
+predictions <- predict(modelnet, newx = as.matrix(test_data[,2:(NCOL(data)-1)]), s = lambda, family = "binomial")
+predictions
+# Calcul de l'erreur quadratique moyenne (MSE) sur les données de test
+mse <- mean((predictions - test_data$diabetes)^2)
+cat("Mean Squared Error:", mse, "\n")
+
+# Coefficients du modèle
+coef(modelnet)
+```
+
+```{r}
+# Créer les matrices de caractéristiques d'entraînement et de test ainsi que les vecteurs de réponses
+X_train <- as.matrix(training_data[, -ncol(training_data)])
+y_train <- training_data[, ncol(training_data)]
+
+X_test <- as.matrix(test_data[, -ncol(test_data)])
+y_test <- test_data[, ncol(test_data)]
+
+# Standardisation des données (optionnel, mais souvent recommandé)
+X_train <- scale(X_train)
+X_test <- scale(X_test)
+
+# Définir la grille de valeurs pour alpha et lambda
+alphas <- seq(0, 1, length = 5)  # Valeurs de alpha entre 0 et 1
+lambdas <- 10^seq(1, -2, by = -0.1)  # Valeurs de lambda de 10 à 0.01 en échelle logarithmique
+
+# Appliquer la validation croisée pour trouver les meilleurs hyperparamètres
+cv_model <- cv.glmnet(X_train, y_train, alpha = alphas, lambda = lambdas)
+
+# Afficher les meilleurs hyperparamètres
+best_alpha <- cv_model$alpha
+best_lambda <- cv_model$lambda.min
+cat("Meilleur alpha:", best_alpha, "\n")
+cat("Meilleur lambda:", best_lambda, "\n")
+
+# Entraîner le modèle avec les meilleurs hyperparamètres sur l'ensemble d'entraînement complet
+best_model <- glmnet(X_train, y_train, alpha = best_alpha, lambda = best_lambda)
+
+# Prédictions sur les données de test
+predictions <- predict(best_model, newx = X_test, s = best_lambda)
+
+# Calcul de l'erreur quadratique moyenne (MSE) sur les données de test
+mse <- mean((predictions - y_test)^2)
+cat("Mean Squared Error:", mse, "\n")
+
+# Coefficients du modèle
+coef(best_model)
 ```
 
 ## 2.5. Comparaison avec la selection de variable pas - à - pas
