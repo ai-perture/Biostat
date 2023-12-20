@@ -113,8 +113,7 @@ On commence par regarder la moyenne et la variance de chaque variable en fonctio
 data %>%
   group_by(diabetes) %>%
   summarise_at( c("pregnant", "glucose", "pressure", "triceps", "insulin", "mass","pedigree","age"),.f = list(mean = mean), na.rm = TRUE)
-  #summarise_all(sd,na.rm = TRUE)
-  #get_summary_stats(glucose, type = "mean_sd")
+
 ```
 
 ```{r Variances}
@@ -145,7 +144,7 @@ ggplot(data = data2, aes(x = diabetes, y = value, color = diabetes)) +
 
 On a deux groupes selon le diagnostic du diabète: les négatifs, *neg*, et les positifs,*pos*, dont on voudrait regarder les différences de moyenne.
 # de moyenne ?
-on regarde pas que ça non ?
+#on regarde pas que ça non ?
 Pour cela, un test t de Student ou de Welch peut-être pertinent, pourvu que les conditions suivantes soient remplies:
 
 1.  Indépendance des observations. Chaque sujet ne doit appartenir qu'à un seul groupe. Il n'y a aucun lien entre les observations de chaque groupe. C'est bien vérifié dans notre cas, puisque les observations ne peuvent avoir qu'un seul label *diabetes* (*pos* ou *neg*). Les observations sont faites sur des femmes différentes, supposées sans lien.
@@ -182,12 +181,11 @@ num_outliers <- outliers_combined %>%
 print(num_outliers)
 ```
 
-Il y a 32 observations aberrantes extrêmes.
+Il y a moins de 20 observations aberrantes extrêmes.
 On construit un set de données "nettoyées" sans ces valeurs :
 
 ```{r}
-data_clean<- anti_join(data, outliers_combined, by = "ID")
-#dans la suite on travaille sur le jeu de données sans les valeurs aberrantes ??
+data <- anti_join(data, outliers_combined, by = "ID")
 ```
 
 ## Normalité par groupes
@@ -255,8 +253,9 @@ On va maintenant séparer le jeu de données avec les variables explicatives d'u
 On enlève la colonne ID qui n'a pas d'interêt explicatif.
 
 ```{r Séparation variables-labels}
-#On sépare les labels des variables après avoir remplacer les étiquettes de la colonne diabetes par 0 ou 1
+#On remplace les étiquettes de la colonne diabète par 0=neg ou 1=pos
 data$diabetes <- factor(data$diabetes, levels = c("neg", "pos"), labels = c(0, 1))
+#On sépare les données entre variables et sortie à expliquer
 X = data[,2:(NCOL(data)-1)]
 y = data[, NCOL(data)]
 ```
@@ -285,7 +284,6 @@ plotPcaBiplot <- fviz_pca_biplot(fit.pca, habillage = data$diabetes)
 
 grid.arrange(plotScree, plotPcaIndiv, plotPcaVar,plotPcaBiplot, ncol = 2, nrow=2)
 ```
-
 #### Interprétation
 
 L'analyse en composante principale permet de représenter les données dans un plan en deux dimension qui est fonction des huit variables étudiées.
@@ -298,7 +296,6 @@ On va regarder cela de plus près en affichant la matrice des corrélations :
 
 ```{r}
 corrplot(cor(X), type = "upper", addCoef.col = TRUE) #matrice des corrélations
-help(corrplot)
 
 ggpairs(data, columns = 2:(ncol(data)-1), ggplot2::aes(colour=diabetes), progress = FALSE)
 ```
@@ -310,8 +307,8 @@ Dans le cas de age et pregnant on peut l'interpréter de la façon suivante : un
 
 ## 2.1 Régression logistique
 
-On commence par **faire une base test indépendante** ie séparer les données en deux sets : training_data et test_data.
-Par ex 80% et 20% des données exploitables.
+On commence par **faire une base test indépendante** ie séparer les données en deux sets : training_data et test_data.On va construire le modèle grâce au premier set puis le tester sur le deuxième.
+Ici on prend un rapport 80/20% pour construire ces deux sets à partir des données exploitables.
 
 Pour réaliser une régression logistique, il est nécessaire d'avoir un **nombre suffisant de données**.
 En pratique, il est recommandé d'avoir au moins **10 fois plus d'événements que de paramètres dans le modèle**.
@@ -326,43 +323,47 @@ Ici, on a des plusieurs centaines d'observations (pour chaque label), pour huit 
 # test_X = X[cut+1:nb_obs,] 
 # test_y = y[cut+1:nb_obs]
 
-# Fixez une graine aléatoire pour la reproductibilité
+# On fixe une graine aléatoire pour la reproductibilité
 set.seed(123)
-
-# Générez un vecteur d'indices pour l'ensemble d'entraînement (80% des données)
+# On génère un vecteur d'indices pour l'ensemble d'entraînement (80% des données)
 indice <- sample(seq_len(nrow(data)), size = round(0.8 * nrow(data)), replace = FALSE)
-# Créez l'ensemble d'entraînement
+# On crée l'ensemble d'entraînement
 training_data <- data[indice, -1 ]
-# Créez l'ensemble de test en excluant les indices de l'ensemble d'entraînement
+# On crée l'ensemble de test en excluant les indices de l'ensemble d'entraînement
 test_data <- data[-indice, -1 ]
 ```
 
 ### Entrainement
 
 ```{r Régression logistique}
-# X ne contient pas les ID qui ne sont pas une variable explicative 
+# On constuit le modèle de y en fonction de toutes les variables explicatives
 model <- glm(diabetes ~ pregnant +glucose + pressure + triceps + insulin + mass + pedigree + age, data = training_data, family = "binomial")
 model_res <- summary(model)
 
-# Obtenir l'ordre des indices des coefficients en ordre décroissant
+# On obtient l'ordre des indices des coefficients en ordre décroissant
 order_indices <- order(abs(model_res$coefficients[, 1]), decreasing = TRUE)
 
-# Afficher le résumé avec les coefficients triés
+# On affiche le résumé avec les coefficients triés
 model_res$coefficients <- model_res$coefficients[order_indices, ]
 print(model_res)
 ```
+Comme la distribution de la variable Y est binomiale, le modèle de régression logistique se met sous équation sous la forme suivante : 
+$$ 
+logit(\mu) = log({\mu}/{1-\mu})= X\beta 
+$$
+avec $$\mu$$ la probabilité que Y=1 (i.e. que la patiente ait le diabète), X la matrice des données des variables explicatives et $$\beta$$ le vecteur des coefficients de la régression.
 
-On peut maintenant mettre notre modèle sous équation cf lien dans notes et réf.
-Attention, facteur exp comme on est dans un modèle avec famille binomial : faire attention quand on interprète les valeurs relatives des différents coefficients.
-==\> à faire
+Ce qui donne :
+$$
+\mu = \frac{exp(\beta_0 +\beta_1 x_1 + ... + \beta_k x_k)}{1 + exp(\beta_0 + \beta_1 x_1 + ... + \beta_k x_k)}
 
-### Visualisations
+$$
+
+### Interprétation des coefficients
 
 ```{r, echo = TRUE, fig.align = 'center', fig.height = 5, fig.width = 7.5}
-
 coefficients <- coef(model)
 or <- odds.ratio(model)
-print(or)
 
 # Créer un dataframe pour les coefficients
 coefficients_df <- data.frame(variable = names(coefficients), coefficient = coefficients,odds_ratio = or$OR)
@@ -377,7 +378,9 @@ plotOR <- ggcoef_model(model, exponentiate = TRUE)
 grid.arrange(plotCoef, plotOR, ncol = 2)
 ```
 
-On pourrait regarder les *odd ratios* OR qui représentent l'influence d'un paramètre --\> A creuser ...
+On pourrait regarder les *odd ratios* OR qui représentent l'influence d'un paramètre --\> A creuser
+
+je c
 
 Le plus gros facteurs de risque est le pédigré en premier (coefficient et odd ration importants).
 On trouve le facteur pregnant en deuxième.
