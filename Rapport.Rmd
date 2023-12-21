@@ -405,6 +405,37 @@ A ce stade, l'accuracy est assez faible (légèrement supérieure à 50%).
 
 Elastic Net Regression, vidéo pour comprendre : <https://www.youtube.com/watch?v=ctmNq7FgbvI> 
 
+Soit $\beta_0$ le minimiseur de $f: \beta \rightarrow || y - x\beta||_2^2$ .
+On cherche le minimiseur de $\phi : \beta \rightarrow || y - x\beta||_2^2 + \lambda_1||\beta||_1 + \lambda_2||\beta||_2^2$.
+On suppose que $x^Tx = I$.
+
+### Expression de $\beta_0$
+
+$f$ est lisse donc si $\beta_0$ minimise $f$, alors: $d_{\beta_0}f.v = 0$.
+Or $$
+d_{\beta_0}f.v = 2<-xv|y-x\beta_0> = 2<v|x^T(x\beta_0-y)> = 2<v|\beta_0 - x^Ty>
+$$ D'où $\beta_0 - x^Ty=0$, soit :
+
+$$
+\beta_0 = x^Tv
+$$
+
+### Minimiseur avec pénalité
+
+Pour tout $\beta$: $$
+||y-x\beta||_2^2 = ||y||_2^2 -2<y|x\beta> + ||x\beta||_2^2 
+$$
+
+Comme $x^Tx = 1>$ et $\beta_0 = x^Ty$ alors:
+
+$$
+||y-x\beta||_2^2 = ||y||_2^2 -2<\beta_0|\beta> + ||\beta||_2^2 
+$$ Donc $$
+\phi : \beta \rightarrow ||y||_2^2 -2<\beta_0|\beta> + \lambda_1 ||\beta||_1 + (1+\lambda_2)||\beta||_2^2 
+$$ Ainsi minimiser $\phi$ revient à minimiser $$
+\psi : \beta \rightarrow (1+\lambda_2)||\beta||_2^2 + \lambda_1||\beta||_1 - 2<\beta_0,\beta>
+$$
+
 ## 2.3. Pénalité ℓ1 + ℓ2.
 
 Caractère parcimonieux = condition mathématique que le modèle doit vérifier.
