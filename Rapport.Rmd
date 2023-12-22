@@ -422,7 +422,9 @@ $$
 
 ### Minimiseur avec pénalité
 
-Pour tout $\beta$: $$
+Pour tout $\beta$:
+
+$$
 ||y-x\beta||_2^2 = ||y||_2^2 -2<y|x\beta> + ||x\beta||_2^2 
 $$
 
@@ -430,17 +432,49 @@ Comme $x^Tx = 1>$ et $\beta_0 = x^Ty$ alors:
 
 $$
 ||y-x\beta||_2^2 = ||y||_2^2 -2<\beta_0|\beta> + ||\beta||_2^2 
-$$ Donc $$
+$$
+
+Donc
+
+$$
 \phi : \beta \rightarrow ||y||_2^2 -2<\beta_0|\beta> + \lambda_1 ||\beta||_1 + (1+\lambda_2)||\beta||_2^2 
-$$ Ainsi minimiser $\phi$ revient à minimiser $$
+$$ Ainsi minimiser $\phi$ revient à minimiser
+
+$$
 \psi : \beta \rightarrow (1+\lambda_2)||\beta||_2^2 + \lambda_1||\beta||_1 - 2<\beta_0,\beta>
+$$
+
+Pour tout $\beta$ :
+
+$$
+\psi(\beta) = \sum_{k} (1+\lambda_2)\beta_k + \lambda_1|\beta_k| - 2\beta_k\beta_{0,k}
+$$
+
+Il est clair que $\beta$ minimise $\psi$ si et seulement si pour tout $k$, $\beta_k$ minimise $g(\beta_k, \beta_{0,k}) = (1+\lambda_2)\beta_k + \lambda_1|\beta_k| - 2\beta_k\beta_{0,k}$.
+
+Pour $\beta_k >0$:
+
+$$
+g(\beta_k, \beta_{0,k}) = (1+\lambda_2)\beta_k^2 + (\lambda_1-2\beta_{0,k})\beta_k
+$$ Donc $$\beta_k = \frac{\beta_{0,k}- \frac{\lambda_1}{2}}{1 + \lambda_2}$$ et $$\beta_{0,k}> \frac{\lambda_1}{2}$$
+
+Pour $\beta_k >0$:
+
+$$
+g(\beta_k, \beta_{0,k}) = (1+\lambda_2)\beta_k^2 - (\lambda_1+2\beta_{0,k})\beta_k
+$$ Donc $$\beta_k = \frac{\beta_{0,k}+ \frac{\lambda_1}{2}}{1 + \lambda_2}$$ et $$\beta_{0,k}< \frac{\lambda_1}{2}$$
+
+Si $\beta_{0,k} = \frac{\lambda_1}{2}$ alors $\beta_k = 0$
+
+On peut résumer ces différents cas sous la forme suivante:
+
+$$
+\beta_k = \frac{max (0,|\beta_{0,k}| - \frac{\lambda_1}{2})}{1+\lambda_2}.sign(\beta_{0,k})
 $$
 
 ## 2.3. Pénalité ℓ1 + ℓ2.
 
-Caractère parcimonieux = condition mathématique que le modèle doit vérifier.
-
-Trouver un cours -\> La démo peut se trouver :-) (on va pas la faire nous meme quand meme).
+La pénalité ainsi appliquée favorise les coefficients nuls dès que $\beta_{0,k}$ est plus petit en valeur absolue que $\frac{\lambda_1}{2}$ donc elle est parcimonieuse.
 
 ## 2.4. Modèle de régression logistique pénalisée ℓ1 +ℓ2
 
