@@ -123,7 +123,7 @@ data %>%
   summarise_at( c("pregnant", "glucose", "pressure", "triceps", "insulin", "mass","pedigree","age"),.f = list(sd = sd), na.rm = TRUE)
 ```
 
-## Représentation des distributions
+## 1.1 Représentation des distributions
 
 ```{r, echo = TRUE, fig.align = 'center', fig.height = 7.5, fig.width = 7.5}
 data2 <- melt(data, id = "diabetes") 
@@ -249,7 +249,7 @@ Pour chaque variables, et quelque soit le test, la *p-value* est très faible (i
 
 Il est donc raisonnable de considérer que pour chaque variable, la différence entre les deux groupes est significative.
 
-# 1.2 - Analyse en composante principale
+## 1.2 - Analyse en composante principale
 
 On va maintenant séparer le jeu de données avec les variables explicatives d'un côté et l'étiquette (diagnostic du diabète) de l'autre.
 On enlève la colonne ID qui n'a pas d'interêt explicatif.
@@ -399,7 +399,7 @@ print(nrow(test_data))
 confusionMatrix(data=predicted_classes, reference = test_data$diabetes)
 ```
 
-A ce stade, l'accuracy est assez faible (légèrement supérieure à 50%).
+A ce stade, l'accuracy est de presque 75%.
 
 ## 2.2. Calculs
 
@@ -496,7 +496,7 @@ En utilisant l'argument weights de la fonction glmnet(), il est possible de gér
 
 library(glmnet)
 
-model2 <- glmnet(training_data[,2:(NCOL(data)-1)], training_data$diabetes, family = "binomial", alpha = 0.5, lambda = NULL)
+model2 <- glmnet(training_data[,2:(NCOL(data)-1)], training_data$diabetes, family = "binomial", alpha = 0.5)
 plot(model2, label = TRUE, ylim = c(-0.1, 0.1))
 ```
 
@@ -520,7 +520,7 @@ mse <- mean((predictions - test_data$diabetes)^2)
 cat("Mean Squared Error:", mse, "\n")
 
 # Coefficients du modèle
-coef(modelnet)
+#coef(modelnet)
 ```
 
 ```{r}
@@ -535,6 +535,14 @@ y_test <- test_data[, ncol(test_data)]
 X_train <- scale(X_train)
 X_test <- scale(X_test)
 
+```
+
+```{r}
+
+cv_model <- cv.glmnet(training_data[,2:(NCOL(data)-1)], training_data$diabetes)
+```
+
+```{r}
 # Définir la grille de valeurs pour alpha et lambda
 alphas <- seq(0, 1, length = 5)  # Valeurs de alpha entre 0 et 1
 lambdas <- 10^seq(1, -2, by = -0.1)  # Valeurs de lambda de 10 à 0.01 en échelle logarithmique
