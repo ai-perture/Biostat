@@ -105,9 +105,17 @@ md.pattern(data, rotate.names=TRUE)
 
 # Question 1 - Analyse exploratoire des données
 
-###1.1 - Distribution des variables On va s'intéresser dans cette partie à la distribution des variables explicatives en fonction de la variable diabetes.
+## 1.1 - Distribution des variables
 
-On commence par regarder la moyenne et la variance de chaque variable en fonction du diagnostic de la patiente :
+On va s'intéresser dans cette partie à la distribution des variables explicatives en fonction de la variable diabetes. On commence par calculer le nombre d'observation pour les deux groupes _pos_ et _neg_. Il y a quasiment deux fois plus d'observations négatives que positives, ce qui pourrait être pris en compte dans le modèle prédictif.
+On continue en regardant la moyenne et la variance de chaque variable en fonction du diagnostic de la patiente.
+
+```{r}
+data%>%
+  group_by(diabetes)%>%
+  summarise(count = n())
+```
+
 
 ```{r Moyennes}
 data %>%
@@ -122,7 +130,11 @@ data %>%
   summarise_at( c("pregnant", "glucose", "pressure", "triceps", "insulin", "mass","pedigree","age"),.f = list(sd = sd), na.rm = TRUE)
 ```
 
-## 1.1 Représentation des distributions
+### Représentation des distributions
+
+On regarde aussi la distribution générale des variables selon le label *diabète*.
+On peut déjà observer grossièrement des différences entre les deux groupes: la plus grosse étant sur la variable glucose où le groupe *pos* a globalement un taux plus élevé.
+On note sur les autres variables (hors ID) que les *pos* ont des valeurs globalement plus élevées (nombre de grossesses, pression, triceps...).
 
 ```{r, echo = TRUE, fig.align = 'center', fig.height = 7.5, fig.width = 7.5}
 data2 <- melt(data, id = "diabetes") 
@@ -140,20 +152,20 @@ ggplot(data = data2, aes(x = diabetes, y = value, color = diabetes)) +
   scale_color_manual(values = c("springgreen4","firebrick3"))
 ```
 
-## Test statistique
+### Conditions du test statistique
 
 On a deux groupes selon le diagnostic du diabète: les négatifs, *neg*, et les positifs,*pos*, dont on voudrait regarder les différences de moyenne.
-# de moyenne ?
-#on regarde pas que ça non ?
+de moyenne ?
+on regarde pas que ça non ?
 Pour cela, un test t de Student ou de Welch peut-être pertinent, pourvu que les conditions suivantes soient remplies:
 
 1.  Indépendance des observations. Chaque sujet ne doit appartenir qu'à un seul groupe. Il n'y a aucun lien entre les observations de chaque groupe. C'est bien vérifié dans notre cas, puisque les observations ne peuvent avoir qu'un seul label *diabetes* (*pos* ou *neg*). Les observations sont faites sur des femmes différentes, supposées sans lien.
-2.  Aucune valeur aberrante significative dans les deux groupes
-3.  Normalité. les données pour chaque groupe devraient être distribuées approximativement normalement.
+2.  Aucune valeur aberrante significative dans les deux groupes.
+3.  Normalité. Les données pour chaque groupe devraient être distribuées approximativement normalement.
 
 Le test de Student suppose que les variances entre les deux groupes sont similaires, ce qui n'est pas le cas du test de Welch.
 
-## Valeurs aberrantes
+### Valeurs aberrantes
 
 On va commencer par observer les valeurs aberrantes pour chaque variable.
 On ne considère pas les valeurs aberrantes sur l'age, la masse ou le nombre de grossesses car il peut y avoir des variables extrêmes en fonction du groupe d'étude qui ne seront pas des erreurs de mesure.
@@ -188,7 +200,7 @@ On construit un set de données "nettoyées" sans ces valeurs :
 data <- anti_join(data, outliers_combined, by = "ID")
 ```
 
-## Normalité par groupes
+### Normalité par groupes
 
 On vérifie, pour chaque variable, si les groupes de données suivent une loi normale.
 On utilise à cet effet le test de Shapiro - Wilk.
@@ -211,7 +223,7 @@ print(shapiro_combine)
 
 La *p-value* est très faible pour tous les groupes donc on ne peut pas considérer que les données suivent une loi normale.
 
-## t -test
+### Test statistique
 
 Pour évaluer les différences entre les deux groupes *pos* et *neg* selon les variables, on utilise un test statistique.
 
@@ -224,7 +236,7 @@ On s'autorise à faire le test de Welch pour comparer les résultats.
 variables_a_tester <- c("pregnant", "glucose", "pressure", "triceps", "insulin", "mass", "pedigree", "age")
 
 # Le t-test classique - version par défaut de Welch
-welch_tests <- map(variables_a_tester, ~ data_clean %>%
+welch_tests <- map(variables_a_tester, ~ data %>%
                     t_test(as.formula(paste(.x, "~ diabetes"))) %>%
                     add_significance())
 welch_res <- bind_rows(welch_tests)%>% 
@@ -232,7 +244,7 @@ welch_res <- bind_rows(welch_tests)%>%
     rename('Welch - p_value' = 'p', "Welch Signif" = 'p.signif')
 
 # Le test de Wilcox pour des données non normalisées 
-wilcox_tests <- map(variables_a_tester, ~ data_clean %>%
+wilcox_tests <- map(variables_a_tester, ~ data %>%
                     wilcox_test(as.formula(paste(.x, "~ diabetes"))) %>%
                     add_significance())
 wilcox_res <- bind_rows(wilcox_tests)%>% 
@@ -284,12 +296,13 @@ plotPcaBiplot <- fviz_pca_biplot(fit.pca, habillage = data$diabetes)
 
 grid.arrange(plotScree, plotPcaIndiv, plotPcaVar,plotPcaBiplot, ncol = 2, nrow=2)
 ```
-#### Interprétation
+
+### Interprétation
 
 L'analyse en composante principale permet de représenter les données dans un plan en deux dimension qui est fonction des huit variables étudiées.
 Les deux premières composantes principales permettent d'expliquer 49,85% de la variance des données.
 
-Les variables les mieux représentées dans ces deux dimensions sont age et pregnant d'une part ; triceps et mass d'autre part (car longueur de la flèche proche de 1).
+Les variables les mieux représentées dans ces deux dimensions sont *age* et *pregnant* d'une part ; *triceps* et *mass* d'autre part (car longueur de la flèche proche de 1).
 Ces deux couples de variables semblent corrélés car les flèches correspondantes pointent dans la même direction.
 
 On va regarder cela de plus près en affichant la matrice des corrélations :
@@ -300,29 +313,21 @@ corrplot(cor(X), type = "upper", addCoef.col = TRUE) #matrice des corrélations
 ggpairs(data, columns = 2:(ncol(data)-1), ggplot2::aes(colour=diabetes), progress = FALSE)
 ```
 
-On observe effectivement des corrélations \>0,55 pour trois couples de variables dont les deux cités ci-dessus ainsi que glucose et insulin, mais ces corrélations ne sont pas très significatives.
-Dans le cas de age et pregnant on peut l'interpréter de la façon suivante : une femme qui a été enceinte de nombreuses fois est probablement âgée, mais une femme qui n'a jamais été enceinte n'est pas forcément jeune, d'où le fait que la corrélation ne soit pas très forte.
+On observe effectivement des corrélations \>0,55 pour trois couples de variables dont les deux cités ci-dessus ainsi que *glucose* et *insulin*, mais ces corrélations ne sont pas très significatives.
+Dans le cas de *age* et *pregnant* on peut l'interpréter de la façon suivante : une femme qui a été enceinte de nombreuses fois est probablement âgée, mais une femme qui n'a jamais été enceinte n'est pas forcément jeune, d'où le fait que la corrélation ne soit pas très forte.
 
 # Question 2 - Prédiction par régression logistique
 
 ## 2.1 Régression logistique
 
-On commence par **faire une base test indépendante** ie séparer les données en deux sets : training_data et test_data.On va construire le modèle grâce au premier set puis le tester sur le deuxième.
+On commence par faire une base test indépendante, ie séparer les données en deux sets : training_data et test_data.
+On va construire le modèle grâce au premier set puis le tester sur le deuxième.
 Ici on prend un rapport 80/20% pour construire ces deux sets à partir des données exploitables.
 
-Pour réaliser une régression logistique, il est nécessaire d'avoir un **nombre suffisant de données**.
-En pratique, il est recommandé d'avoir au moins **10 fois plus d'événements que de paramètres dans le modèle**.
-Ici, on a des plusieurs centaines d'observations (pour chaque label), pour huit paramètres donc il y a suffisamment de données.
+Pour réaliser une régression logistique, il est nécessaire d'avoir un nombre suffisant de données par rapport au nombre de paramètres.
+Ici, on a des plusieurs centaines d'observations (pour chaque label), pour huit paramètres donc on considère qu'il y a assez de données.
 
 ```{r Séparation en groupe test et groupe d'entraînement}
-# ##Sans doute à virer après, àlà c'est juste au cas où
-# nb_obs = NROW(data)
-# cut = round(0.8*nb_obs)
-# training_X = X[1:cut,] #labels du groupe test
-# training_y = y[1:cut] #labels du groupe d'entraînement
-# test_X = X[cut+1:nb_obs,] 
-# test_y = y[cut+1:nb_obs]
-
 # On fixe une graine aléatoire pour la reproductibilité
 set.seed(123)
 # On génère un vecteur d'indices pour l'ensemble d'entraînement (80% des données)
@@ -337,9 +342,9 @@ test_data <- data[-indice, -1 ]
 
 ```{r Régression logistique}
 # On constuit le modèle de y en fonction de toutes les variables explicatives
-model <- glm(diabetes ~ pregnant +glucose + pressure + triceps + insulin + mass + pedigree + age, data = training_data, family = "binomial")
-model_res <- summary(model)
-
+glm_model <- glm(diabetes ~ pregnant +glucose + pressure + triceps + insulin + mass + pedigree + age, data = training_data, family = "binomial")
+model_res <- summary(glm_model)
+print(model_res$coefficients)
 # On obtient l'ordre des indices des coefficients en ordre décroissant
 order_indices <- order(abs(model_res$coefficients[, 1]), decreasing = TRUE)
 
@@ -347,23 +352,19 @@ order_indices <- order(abs(model_res$coefficients[, 1]), decreasing = TRUE)
 model_res$coefficients <- model_res$coefficients[order_indices, ]
 print(model_res)
 ```
-Comme la distribution de la variable Y est binomiale, le modèle de régression logistique se met sous équation sous la forme suivante : 
-$$ 
+
+Comme la distribution de la variable Y est binomiale, le modèle de régression logistique se met sous équation sous la forme suivante : $$ 
 logit(\mu) = log({\mu}/{1-\mu})= X\beta 
-$$
-avec $$\mu$$ la probabilité que Y=1 (i.e. que la patiente ait le diabète), X la matrice des données des variables explicatives et $$\beta$$ le vecteur des coefficients de la régression.
+$$ avec $\mu$ la probabilité que Y=1 (i.e. que la patiente ait le diabète), X la matrice des données des variables explicatives et $\beta$ le vecteur des coefficients de la régression.
 
-Ce qui donne :
-$$
-\mu = \frac{exp(\beta_0 +\beta_1 x_1 + ... + \beta_k x_k)}{1 + exp(\beta_0 + \beta_1 x_1 + ... + \beta_k x_k)}
-
+Ce qui donne : $$\mu = \frac{exp(\beta_0 +\beta_1 x_1 + ... + \beta_k x_k)}{1 + exp(\beta_0 + \beta_1 x_1 + ... + \beta_k x_k)}
 $$
 
 ### Interprétation des coefficients
 
 ```{r, echo = TRUE, fig.align = 'center', fig.height = 5, fig.width = 7.5}
-coefficients <- coef(model)
-or <- odds.ratio(model)
+coefficients <- coef(glm_model)
+or <- odds.ratio(glm_model)
 
 # Créer un dataframe pour les coefficients
 coefficients_df <- data.frame(variable = names(coefficients), coefficient = coefficients,odds_ratio = or$OR)
@@ -373,7 +374,7 @@ print(coefficients_df)
 plotCoef <- ggplot(coefficients_df, aes(x = variable, y = coefficient)) +
   geom_bar(stat = "identity", fill = "blue", alpha = 0.7) +
   labs(title = "Graphique des Coefficients", x = "Variables", y = "Coefficient")
-plotOR <- ggcoef_model(model, exponentiate = TRUE)
+plotOR <- ggcoef_model(glm_model, exponentiate = TRUE)
 
 grid.arrange(plotCoef, plotOR, ncol = 2)
 ```
@@ -387,26 +388,30 @@ On trouve le facteur pregnant en deuxième.
 
 ### Prédictions
 
+
 ```{r}
-probabilites <- model %>% 
+probabilites_glm <- glm_model %>% 
   predict(test_data, type = "response")
 
 
-predicted_classes <- ifelse(probabilites > 0.5, "pos", "neg")
-predicted_classes <- factor(predicted_classes, levels = c("neg", "pos"), labels = c(0, 1))
-print(length(predicted_classes))
-print(nrow(test_data))
+predicted_classes_glm <- ifelse(probabilites_glm > 0.5, "pos", "neg")
+predicted_classes_glm <- factor(predicted_classes_glm, levels = c("neg", "pos"), labels = c(0, 1))
 ```
+
+
 
 ```{r}
-confusionMatrix(data=predicted_classes, reference = test_data$diabetes)
+confusion_glm = confusionMatrix(data=predicted_classes_glm, reference = test_data$diabetes)
+confusion_glm
 ```
 
-A ce stade, l'accuracy est de presque 75%.
+A ce stade, l'accuracy est d'environ 71%.
 
 ## 2.2. Calculs
 
 Elastic Net Regression, vidéo pour comprendre : <https://www.youtube.com/watch?v=ctmNq7FgbvI> 
+
+Intéressons nous à une pénalité de type l_1 +l_2.
 
 Soit $\beta_0$ le minimiseur de $f: \beta \rightarrow || y - x\beta||_2^2$ .
 On cherche le minimiseur de $\phi : \beta \rightarrow || y - x\beta||_2^2 + \lambda_1||\beta||_1 + \lambda_2||\beta||_2^2$.
@@ -481,97 +486,88 @@ La pénalité ainsi appliquée favorise les coefficients nuls dès que $\beta_{0
 
 ## 2.4. Modèle de régression logistique pénalisée ℓ1 +ℓ2
 
-pour prédire la variable diabetes à partir de l'ensemble des facteurs de risque.
-Quelles variables semblent les plus pertinentes ?
-Reporter les indicateurs de qualités de cette régression logistique pénalisée ℓ1 + ℓ2.
+Pour ce modèle plus sophistiqué, on fera une régression pénalisée avec la fonction glmnet. On optimise plusieurs paramètres:
+- Le poids des classes, car elles sont de tailles inégales. Ils ont été optimisés à la main, et on a obtenu un factor 3 entre _neg_ et _pos_. 
+- Le facteur lambda est optimisé par cross-validation, la valeur retenue étant 0.01.
+- Plusieurs valeurs d'alpha ont été testées. On remarque une accuracy plus élevée pour alpha = 0, ie une régression ridge (L2) simple. Cela favorise un modèle où tous les coefficients ont tendance à être réduits de manière égale, sans favoriser la sélection de variables spécifiques.
 
-Remarque 1.
-Vous veillerez à optimiser les paramètres de ce modèle par cross-validation.
-
-Remarque 2.
-En utilisant l'argument weights de la fonction glmnet(), il est possible de gérer le déséquilibre des classes.
-
-<http://www.sthda.com/english/articles/36-classification-methods-essentials/149-penalized-logistic-regression-essentials-in-r-ridge-lasso-and-elastic-net/>
-
-**Trouver le bon alpha** + **Quelles données mettre dans ce deuxième modèle?**
-
-```{r}
-
-library(glmnet)
-
-model2 <- glmnet(training_data[,2:(NCOL(data)-1)], training_data$diabetes, family = "binomial", alpha = 0.5)
-plot(model2, label = TRUE, ylim = c(-0.1, 0.1))
-```
-
-```{r}
-coef(model2, s = 0.1)
-```
-
-```{r}
-# Paramètres alpha et lambda pour la régularisation Elastic Net
-alpha <- 0.5  # ajustez la valeur selon vos besoins (0 correspond à la régularisation Ridge, 1 à la régularisation Lasso)
-lambda <- 0.1  # ajustez la valeur selon vos besoins, contrôle le niveau global de régularisation
-
-# Appliquer la régression Elastic Net
-modelnet <- glmnet(training_data[,2:(NCOL(data)-1)], training_data$diabetes, alpha = alpha, lambda = lambda, family = "binomial")
-
-# Prédictions sur les données de test
-predictions <- predict(modelnet, newx = as.matrix(test_data[,2:(NCOL(data)-1)]), s = lambda, family = "binomial")
-predictions
-# Calcul de l'erreur quadratique moyenne (MSE) sur les données de test
-mse <- mean((predictions - test_data$diabetes)^2)
-cat("Mean Squared Error:", mse, "\n")
-
-# Coefficients du modèle
-#coef(modelnet)
-```
-
-```{r}
+Quelle que soit la valeur de lambda, les variables les plus influentes sont le glucose et la masse. 
+```{r Données train et test}
 # Créer les matrices de caractéristiques d'entraînement et de test ainsi que les vecteurs de réponses
-X_train <- as.matrix(training_data[, -ncol(training_data)])
-y_train <- training_data[, ncol(training_data)]
 
+X_train <- as.matrix(training_data[, -ncol(training_data)])
+y_train <- as.numeric(training_data[, ncol(training_data)]) - 1
+weights <- ifelse(y_train == 0, 1, 3)
 X_test <- as.matrix(test_data[, -ncol(test_data)])
 y_test <- test_data[, ncol(test_data)]
-
 # Standardisation des données (optionnel, mais souvent recommandé)
 X_train <- scale(X_train)
 X_test <- scale(X_test)
 
 ```
 
-```{r}
 
-cv_model <- cv.glmnet(training_data[,2:(NCOL(data)-1)], training_data$diabetes)
-```
+```{r Validation croisée }
 
-```{r}
+library(glmnet)
+
 # Définir la grille de valeurs pour alpha et lambda
-alphas <- seq(0, 1, length = 5)  # Valeurs de alpha entre 0 et 1
-lambdas <- 10^seq(1, -2, by = -0.1)  # Valeurs de lambda de 10 à 0.01 en échelle logarithmique
+lambdas <- seq(0, 1, by = 0.001)  # Valeurs de lambda de 10 à 0.01 en échelle logarithmique
 
 # Appliquer la validation croisée pour trouver les meilleurs hyperparamètres
-cv_model <- cv.glmnet(X_train, y_train, alpha = alphas, lambda = lambdas)
+cv_model <- cv.glmnet(X_train, y_train, alpha = 0.5, lambda = lambdas)#alpha = alphas,
 
 # Afficher les meilleurs hyperparamètres
-best_alpha <- cv_model$alpha
 best_lambda <- cv_model$lambda.min
-cat("Meilleur alpha:", best_alpha, "\n")
 cat("Meilleur lambda:", best_lambda, "\n")
+```
 
+```{r l1 + l2}
 # Entraîner le modèle avec les meilleurs hyperparamètres sur l'ensemble d'entraînement complet
-best_model <- glmnet(X_train, y_train, alpha = best_alpha, lambda = best_lambda)
+glmnet_model <- glmnet(X_train, y_train,  lambda = best_lambda, alpha = 0.5, weights = weights)#
 
 # Prédictions sur les données de test
-predictions <- predict(best_model, newx = X_test, s = best_lambda)
+predictions_glmnet <- predict(glmnet_model, newx = X_test, s = best_lambda)
+predicted_classes_glmnet <- ifelse(predictions_glmnet > 0.5, "pos", "neg")
+predicted_classes_glmnet <- factor(predicted_classes_glmnet, levels = c("neg", "pos"), labels = c(0, 1))
 
 # Calcul de l'erreur quadratique moyenne (MSE) sur les données de test
-mse <- mean((predictions - y_test)^2)
+mse <- mean((predictions_glmnet - (as.numeric(y_test)-1))^2)
+cat("Mean Squared Error:", mse, "\n")
+
+# Coefficients du modèle
+coef(glmnet_model)
+confusion_glmnet = confusionMatrix(data=predicted_classes_glmnet, reference = y_test)
+confusion_glmnet
+```
+
+```{r l1 seul}
+# Entraîner le modèle avec les meilleurs hyperparamètres sur l'ensemble d'entraînement complet
+best_model <- glmnet(X_train, y_train,  lambda = best_lambda, alpha = 0, weights = weights)
+
+# Prédictions sur les données de test
+predictions3 <- predict(best_model, newx = X_test, s = best_lambda)
+predicted_classes3 <- ifelse(predictions3 > 0.5, "pos", "neg")
+predicted_classes3 <- factor(predicted_classes3, levels = c("neg", "pos"), labels = c(0, 1))
+
+# Calcul de l'erreur quadratique moyenne (MSE) sur les données de test
+mse <- mean((predictions3 - (as.numeric(y_test)-1))^2)
 cat("Mean Squared Error:", mse, "\n")
 
 # Coefficients du modèle
 coef(best_model)
+confusionMatrix(data=predicted_classes3, reference = y_test)
+
 ```
+
+
+
+Pour le modèle alpha = 0.5: 
+- le modèle pénalise seulement la variable _pressure_
+- la balanced accuracy est meilleure Balanced Accuracy : 0.7328 au lieu de 0.6682
+> créer une table pour comparer la régression simple et la régression pénalisée 
+
+
 
 ## 2.5. Comparaison avec la selection de variable pas - à - pas
 
@@ -579,4 +575,63 @@ Comparer vos résultats issus de la régression logistique pénalisée ℓ1 + �
 
 sélection de variables pas-à-pas (step() en R).
 
-### 2.6. Conclusion
+```{r méthode step()}
+# Créer un modèle linéaire initial
+initial_model <- glm(diabetes ~ pregnant +glucose + pressure + triceps + insulin + mass + pedigree + age, data = training_data, family = "binomial")
+
+step_model <- step(initial_model)
+
+# Obtenir les noms des variables incluses dans le modèle final
+included_variables <- names(coefficients(step_model))
+print(included_variables)
+coef(step_model)
+
+
+
+```
+
+
+```{r}
+# step_model <- lm(diabetes ~ pregnant +glucose +triceps +  mass + pedigree + age, data = training_data, family = "binomial")
+# coef(step_model)
+
+probabilites_step <- step_model %>% 
+  predict(test_data, type = "response")
+
+predicted_classes_step <- ifelse(probabilites_step > 0.5, "pos", "neg")
+predicted_classes_step <- factor(predicted_classes_step, levels = c("neg", "pos"),labels = c(0, 1))
+
+confusion_step = confusionMatrix(data=predicted_classes_step, reference = test_data$diabetes)
+confusion_step
+```
+## 2.6 Conclusion
+
+### Comparaison des différents modèles 
+
+
+```{r}
+calculate_F1 <- function(confusion_matrix) {
+
+  precision <- confusion_matrix$byClass['Precision']
+  recall <- confusion_matrix$byClass['Recall']
+  f1_score <- 2 * (precision * recall) / (precision + recall)
+
+
+  return(f1_score)
+}
+```
+
+```{r}
+metrics_df <- data.frame(
+  Model = c("GLM", "GLMNet", "Step"),
+  Precision = c(confusion_glm$byClass['Precision'], confusion_glmnet$byClass['Precision'], confusion_step$byClass['Precision']),
+  Recall = c(confusion_glm$byClass["Recall"], confusion_glmnet$byClass["Recall"], confusion_step$byClass["Recall"]),
+  F1_Score = c(calculate_F1(confusion_glm),calculate_F1(confusion_glmnet),calculate_F1(confusion_step)),
+  Balanced_Accuracy = c(confusion_glm$byClass["Balanced Accuracy"], confusion_glmnet$byClass["Balanced Accuracy"], confusion_step$byClass["Balanced Accuracy"]),
+  stringsAsFactors = FALSE
+)
+
+metrics_df
+```
+
+Finalement, GLMNet a les moins bons scores en F1 et balanced accuracy. Sa précision est bonne mais le recall est trop mauvais par rapport aux autres. 
