@@ -378,9 +378,7 @@ plotOR <- ggcoef_model(model, exponentiate = TRUE)
 grid.arrange(plotCoef, plotOR, ncol = 2)
 ```
 
-On pourrait regarder les *odd ratios* OR qui représentent l'influence d'un paramètre --\> A creuser
-
-je c
+On pourrait regarder les *odd ratios* OR qui représentent l'influence d'un paramètre --\> A creuser cf notes et références.
 
 Le plus gros facteurs de risque est le pédigré en premier (coefficient et odd ration importants).
 On trouve le facteur pregnant en deuxième.
@@ -391,28 +389,25 @@ On trouve le facteur pregnant en deuxième.
 probabilites <- model %>% 
   predict(test_data, type = "response")
 
-
 predicted_classes <- ifelse(probabilites > 0.5, "pos", "neg")
 predicted_classes <- factor(predicted_classes, levels = c("neg", "pos"), labels = c(0, 1))
-print(length(predicted_classes))
-print(nrow(test_data))
 ```
 
 ```{r}
 confusionMatrix(data=predicted_classes, reference = test_data$diabetes)
 ```
 
-A ce stade, l'accuracy est assez faible (légèrement supérieure à 50%).
+A ce stade, l'accuracy est plutôt pas mal (>75%).
 
 ## 2.2. Calculs
 
-Elastic Net Regression, vidéo pour comprendre : <https://www.youtube.com/watch?v=ctmNq7FgbvI> 
+cf YVANN
 
 ## 2.3. Pénalité ℓ1 + ℓ2.
 
 Caractère parcimonieux = condition mathématique que le modèle doit vérifier.
 
-Trouver un cours -\> La démo peut se trouver :-) (on va pas la faire nous meme quand meme).
+Trouver un cours -\> La démo peut se trouver :-) (on va pas la faire nous meme quand meme)(hihi).
 
 ## 2.4. Modèle de régression logistique pénalisée ℓ1 +ℓ2
 
