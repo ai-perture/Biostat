@@ -25,3 +25,7 @@ https://stats.oarc.ucla.edu/other/mult-pkg/faq/general/faq-how-do-i-interpret-od
 
 Elastic Net Regression, vidéo pour comprendre : 
 <https://www.youtube.com/watch?v=ctmNq7FgbvI>
+
+Matrice de confusion, etc :
+https://kobia.fr/classification-metrics-precision-recall/ (recall = à quel point est-ce-qu'on a bien identifié les positif.ves ? / précision = à quel point est-ce-qu'on a sélectionné par erreur des faux positifs ?)
+https://kobia.fr/classification-metrics-f1-score/ 
